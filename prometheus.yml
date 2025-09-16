@@ -1,20 +1,19 @@
 # Global settings apply to all scrape jobs
 global:
-  scrape_interval: 15s      # Collect metrics every 15 seconds
-  evaluation_interval: 15s  # Evaluate alerting rules every 15 seconds
+  scrape_interval: 15s # Collect metrics every 15 seconds
+  evaluation_interval: 15s # Evaluate alerting rules every 15 seconds
 
 # Scrape configurations
 scrape_configs:
   # 1. Prometheus self‑metrics
-  - job_name: 'prometheus'
+  - job_name: "prometheus"
     static_configs:
-      - targets: ['localhost:9090']
+      - targets: ["localhost:9090"]
         labels:
-          app: 'prometheus'   # add custom label if desired :contentReference[oaicite:1]{index=1}
+          app: "prometheus" # add custom label if desired :contentReference[oaicite:1]{index=1}
 
   # 2. n8n metrics endpoint
-  - job_name: 'n8n'
-    metrics_path: '/metrics'
+  - job_name: "n8n"
+    metrics_path: "/metrics"
     static_configs:
-      - targets: ['n8n:5678']  # matches your Docker Compose service name :contentReference[oaicite:2]{index=2}
-      
+      - targets: ["n8n:5678"] # matches your Docker Compose service name :contentReference[oaicite:2]{index=2}

@@ -2,7 +2,8 @@
 
 # n8n Homelab Stack with PostgreSQL & pgvector
 
-A comprehensive Docker Compose stack for running n8n workflow automation with PostgreSQL database backend, featuring pgvector extension for AI/ML workflows and optional n8n-mcp integration for AI-assisted development.
+A comprehensive Docker Compose stack for running n8n workflow automation with PostgreSQL database backend, featuring
+pgvector extension for AI/ML workflows and optional n8n-mcp integration for AI-assisted development.
 
 ## Features
 
@@ -34,14 +35,16 @@ docker compose logs -f n8n              # View logs
 
 ### 3. Access n8n
 
-- **Local**: http://n8n.lan:5678 (requires DNS setup)
-- **Production**: https://n8n.leoric.org (with Cloudflare Tunnel)
+- **Local**: <http://n8n.lan:5678> (requires DNS setup)
+- **Production**: <https://n8n.leoric.org> (with Cloudflare Tunnel)
 
 ## Production Deployment
 
-For secure internet-accessible deployment with Cloudflare Tunnel, see the comprehensive [DEPLOYMENT.md](DEPLOYMENT.md) guide.
+For secure internet-accessible deployment with Cloudflare Tunnel, see the comprehensive [DEPLOYMENT.md](DEPLOYMENT.md)
+guide.
 
 Key features for production:
+
 - HTTPS protocol with SSL termination via Cloudflare
 - Secure tunnel without exposing ports
 - Comprehensive metrics and monitoring
@@ -95,6 +98,7 @@ docker compose exec postgres psql -U n8n_user -d n8n                           #
 ## AI/ML Capabilities
 
 This stack includes pgvector extension for:
+
 - Vector similarity search
 - Embedding storage and retrieval
 - AI/ML workflow support
@@ -114,8 +118,8 @@ The n8n-mcp service provides AI-assisted workflow development when configured wi
 ### Common Issues
 
 1. **Port conflicts**: Change ports in docker-compose.yml if 5678 is in use
-2. **Database connection**: Verify credentials in .env match database settings
-3. **DNS resolution**: Configure n8n.lan in your DNS or hosts file for local access
+1. **Database connection**: Verify credentials in .env match database settings
+1. **DNS resolution**: Configure n8n.lan in your DNS or hosts file for local access
 
 ### Logs and Debugging
 

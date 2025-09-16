@@ -2,4 +2,8 @@
 .env.backup
 credentials-backup.json
 
+.venv/
+node_modules/
+.vscode/
+
 .claude

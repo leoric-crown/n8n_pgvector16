@@ -56,6 +56,7 @@ docker exec n8n-app rm /tmp/credentials.json
 ## Security Best Practices
 
 ### Completed Security Measures
+
 - ✅ Strong passwords for database and admin accounts
 - ✅ `N8N_PROXY_HOPS=2` configured for reverse proxy setup
 - ✅ `N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true`
@@ -64,6 +65,7 @@ docker exec n8n-app rm /tmp/credentials.json
 - ✅ HTTPS enabled with proper host configuration
 
 ### Additional Security Recommendations
+
 - [ ] Regenerate n8n API key (current one may be exposed in logs)
 - [ ] Set `N8N_USER_MANAGEMENT_JWT_SECRET` for session security
 - [ ] Consider `N8N_USER_MANAGEMENT_DISABLED=true` after creating admin user
@@ -72,10 +74,12 @@ docker exec n8n-app rm /tmp/credentials.json
 - [ ] Enable audit logging with `N8N_LOG_OUTPUT=file`
 
 ### Network Security
+
 - Database port not exposed (internal Docker network only)
 - n8n behind Caddy + Cloudflare Tunnel (2 proxy hops)
 - Custom Docker network isolation (optional improvement)
 
 ### Monitoring
+
 - Optional: Enable Prometheus metrics (currently commented out)
 - Optional: Set up Grafana dashboard (currently commented out)

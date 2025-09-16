@@ -4,7 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Architecture Overview
 
-This is a Docker Compose stack for running n8n (workflow automation tool) with PostgreSQL as the database backend. The setup includes:
+This is a Docker Compose stack for running n8n (workflow automation tool) with PostgreSQL as the database backend. The
+setup includes:
 
 - **PostgreSQL with pgvector**: Uses `pgvector/pgvector:pg16` image with vector extension for AI/ML workflows
 - **n8n**: Latest n8n workflow automation tool connected to PostgreSQL
@@ -22,27 +23,32 @@ This is a Docker Compose stack for running n8n (workflow automation tool) with P
 ## Common Commands
 
 ### Start the stack
+
 ```bash
 docker-compose up -d
 ```
 
 ### Stop the stack
+
 ```bash
 docker-compose stop
 ```
 
 ### Tear down with volume removal
+
 ```bash
 docker-compose down -v
 ```
 
 ### View logs
+
 ```bash
 docker-compose logs -f n8n
 docker-compose logs -f postgres
 ```
 
 ### Management script (from parent directory)
+
 ```bash
 ../manage.bash up    # Start all compose stacks in parent directory
 ../manage.bash down  # Stop all compose stacks
@@ -59,12 +65,36 @@ docker-compose logs -f postgres
 ## Environment Setup
 
 1. Copy `.env.example` to `.env` and update passwords
-2. Ensure `myLANrootCA.crt` is present for SSL certificate trust
-3. Configure DNS or hosts file for `n8n.lan` resolution
+
+1. Configure DNS or hosts file for `n8n.lan` resolution
+
+1. Install pre-commit hooks for security and code quality:
+
+   ```bash
+   uv tool install detect-secrets
+   pre-commit install
+   ```
+
+## Pre-commit Hooks
+
+Comprehensive security and code quality hooks with automatic formatting:
+
+- **Secret Detection**: `detect-secrets` prevents committing API keys, passwords, tokens
+- **File Hygiene**: Trailing whitespace, end-of-file fixes, line endings
+- **Auto-formatting**: Prettier for YAML, mdformat for Markdown (120 char line wrap)
+- **Format Validation**: YAML, JSON, TOML, XML syntax checking
+- **Docker Security**: Basic Dockerfile security pattern detection
+- **Linting**: yamllint and markdownlint for consistent formatting
+- **Environment Protection**: Prevents `.env` commits, validates `.env.example`
+
+The formatters automatically fix line length issues in Markdown and YAML files.
+
+Run manually: `pre-commit run --all-files`
 
 ## Monitoring (Optional)
 
 Uncomment Prometheus and Grafana services in `docker-compose.yml` to enable:
-- Prometheus: http://localhost:9090
-- Grafana: http://localhost:3000 (admin/overBurden9)
+
+- Prometheus: <http://localhost:9090>
+- Grafana: <http://localhost:3000> (admin/overBurden9)
 - n8n metrics available at `/metrics` endpoint when enabled
