@@ -1,23 +1,23 @@
-# n8n.leoric.org Cloudflare Tunnel Deployment Guide
+# n8n.<your-domain> Cloudflare Tunnel Deployment Guide
 
 ## Prerequisites
 
 ### 1. Cloudflare Account Setup
 
-- Domain `leoric.org` added to Cloudflare
+- Domain `<your-domain>` added to Cloudflare
 - Domain nameservers pointing to Cloudflare
 
 ### 2. Verify Domain in Cloudflare
 
 ```bash
 # Check nameservers point to Cloudflare
-dig NS leoric.org
+dig NS <your-domain>
 
 # Verify DNS record exists (created automatically by tunnel)
-dig n8n.leoric.org
+dig n8n.<your-domain>
 ```
 
-- Ensure `leoric.org` domain is active in Cloudflare dashboard
+- Ensure `<your-domain>` domain is active in Cloudflare dashboard
 - DNS records will be created automatically by the tunnel
 
 ## Cloudflare Tunnel Setup
@@ -45,22 +45,22 @@ this is the simplest method:
 1. **Create tunnel**:
 
    ```bash
-   cloudflared tunnel create n8n-leoric-org
+   cloudflared tunnel create n8n-<your-domain>
    ```
 
 1. **Route DNS to tunnel**:
 
    ```bash
-   cloudflared tunnel route dns n8n-leoric-org n8n.leoric.org
+   cloudflared tunnel route dns n8n-<your-domain> n8n.<your-domain>
    ```
 
 1. **Configure cloudflared**: Create `/etc/cloudflared/config.yml`:
 
    ```yaml
-   tunnel: <TUNNEL_UUID>  # Get from: cloudflared tunnel info n8n-leoric-org
+   tunnel: <TUNNEL_UUID>  # Get from: cloudflared tunnel info n8n-<your-domain>
    credentials-file: <PATH_TO_CREDENTIALS>  # Usually ~/.cloudflared/<UUID>.json
    ingress:
-     - hostname: n8n.leoric.org
+     - hostname: n8n.<your-domain>
        service: http://localhost:5678
      - service: http_status:404
    ```
@@ -69,7 +69,7 @@ this is the simplest method:
 
    ```bash
    # Get tunnel UUID
-   cloudflared tunnel info n8n-leoric-org
+   cloudflared tunnel info n8n-<your-domain>
 
    # Find credentials file (check both locations)
    ls ~/.cloudflared/
@@ -109,7 +109,7 @@ Update the following variables in `.env`:
 
 ```env
 # Production domain
-N8N_HOST=n8n.leoric.org
+N8N_HOST=n8n.<your-domain>
 
 # Database credentials (generate strong passwords)
 POSTGRES_PASSWORD=your_super_secret_postgres_password
@@ -150,32 +150,32 @@ Cloudflare Tunnel runs as a system service (installed via CLI), not as a Docker 
 
 ```bash
 # Verify DNS propagation
-dig n8n.leoric.org
+dig n8n.<your-domain>
 
 # Verify .env configuration
 cat .env
 
 # Check docker-compose syntax
-docker-compose -f docker-compose.yml config
+docker compose config
 ```
 
 ### 2. Deploy Stack
 
 ```bash
 # Pull latest images
-docker-compose -f docker-compose.yml pull
+docker compose pull
 
 # Start services
-docker-compose -f docker-compose.yml up -d
+docker compose up -d
 
 # Check service status
-docker-compose -f docker-compose.yml ps
-docker-compose -f docker-compose.yml logs -f n8n
+docker compose ps
+docker compose logs -f n8n
 ```
 
 ### 3. Initial n8n Setup
 
-1. Access <https://n8n.leoric.org> (Cloudflare handles SSL and routing)
+1. Access \<<https://n8n>.<your-domain>> (Cloudflare handles SSL and routing)
 1. Create admin account
 1. Configure base URL in settings
 1. Generate API key for n8n-mcp integration
@@ -187,7 +187,7 @@ docker-compose -f docker-compose.yml logs -f n8n
 openssl rand -hex 32
 
 # Update .env with n8n API key and MCP token
-# Restart n8n-mcp service (not included in prod compose - use dev for MCP)
+# Restart n8n-mcp service
 ```
 
 ## Post-Deployment Verification
@@ -196,18 +196,18 @@ openssl rand -hex 32
 
 ```bash
 # Check all services running
-docker-compose -f docker-compose.yml ps
+docker compose ps
 
 # Test database connectivity
-docker-compose -f docker-compose.yml exec postgres pg_isready -U n8n_user -d n8n
+docker compose exec postgres pg_isready -U n8n_user -d n8n
 
 # Check n8n logs for errors
-docker-compose -f docker-compose.yml logs n8n | tail -50
+docker compose logs n8n | tail -50
 ```
 
 ### 2. Functionality Tests
 
-- [ ] n8n web interface accessible at <https://n8n.leoric.org>
+- [ ] n8n web interface accessible at \<<https://n8n>.<your-domain>>
 - [ ] Workflow creation and execution
 - [ ] Webhook endpoints working
 - [ ] Database persistence (restart container test)
@@ -248,7 +248,7 @@ docker run --rm -v n8n_pgvector16_db_storage:/data -v $(pwd):/backup alpine tar 
 
 - Check tunnel service status: `sudo systemctl status cloudflared`
 - View tunnel logs: `sudo journalctl -u cloudflared -f`
-- Verify tunnel is running: `cloudflared tunnel info n8n-leoric-org`
+- Verify tunnel is running: `cloudflared tunnel info n8n-<your-domain>`
 
 ### SSL Issues
 
@@ -260,23 +260,23 @@ docker run --rm -v n8n_pgvector16_db_storage:/data -v $(pwd):/backup alpine tar 
 
 ```bash
 # Check postgres logs
-docker-compose -f docker-compose.yml logs postgres
+docker compose logs postgres
 
 # Test database connection
-docker-compose -f docker-compose.yml exec postgres psql -U n8n_user -d n8n -c "SELECT version();"
+docker compose exec postgres psql -U n8n_user -d n8n -c "SELECT version();"
 ```
 
 ### n8n Service Issues
 
 ```bash
 # Check n8n logs
-docker-compose -f docker-compose.yml logs n8n
+docker compose logs n8n
 
 # Restart n8n service
-docker-compose -f docker-compose.yml restart n8n
+docker compose restart n8n
 
 # Check database connectivity from n8n
-docker-compose -f docker-compose.yml exec n8n sh -c 'nc -zv postgres 5432'
+docker compose exec n8n sh -c 'nc -zv postgres 5432'
 ```
 
 ## Personal Use & Experimentation Setup
@@ -316,7 +316,7 @@ N8N_ENCRYPTION_KEY=$(openssl rand -hex 32)
 ```bash
 # Basic health check script
 #!/bin/bash
-curl -f https://n8n.leoric.org/healthz || \
+curl -f https://n8n.<your-domain>/healthz || \
   echo "n8n down - $(date)" >> ~/n8n-health.log
 ```
 
@@ -345,7 +345,7 @@ curl -f https://n8n.leoric.org/healthz || \
 
 ```bash
 # Example webhook URL for your n8n
-https://n8n.leoric.org/webhook/github-deploy
+https://n8n.<your-domain>/webhook/github-deploy
 ```
 
 #### API Testing Environment
@@ -360,12 +360,12 @@ https://n8n.leoric.org/webhook/github-deploy
 
 ```bash
 # Manual backup when experimenting
-docker-compose -f docker-compose.yml exec postgres \
+docker compose exec postgres \
   pg_dump -U n8n_user -d n8n > backup-$(date +%Y%m%d).sql
 
 # Export workflows
 curl -H "X-N8N-API-KEY: your-api-key" \
-  https://n8n.leoric.org/api/v1/workflows > workflows-backup.json
+  https://n8n.<your-domain>/api/v1/workflows > workflows-backup.json
 ```
 
 ### 6. Quick Recovery
@@ -374,24 +374,24 @@ curl -H "X-N8N-API-KEY: your-api-key" \
 
 ```bash
 # Quick restart
-docker-compose -f docker-compose.yml restart
+docker compose restart
 
 # Reset if needed (WARNING: loses data)
-docker-compose -f docker-compose.yml down -v
-docker-compose -f docker-compose.yml up -d
+docker compose down -v
+docker compose up -d
 ```
 
 #### Useful Development Commands
 
 ```bash
 # View logs
-docker-compose -f docker-compose.yml logs -f n8n
+docker compose logs -f n8n
 
 # Access n8n container
-docker-compose -f docker-compose.yml exec n8n sh
+docker compose exec n8n sh
 
 # Database access
-docker-compose -f docker-compose.yml exec postgres \
+docker compose exec postgres \
   psql -U n8n_user -d n8n
 ```
 
@@ -399,8 +399,7 @@ docker-compose -f docker-compose.yml exec postgres \
 
 ### Casual Maintenance for Personal Use
 
-- [ ] Monthly updates when convenient
-  (`docker-compose -f docker-compose.yml pull && docker-compose -f docker-compose.yml up -d`)
+- [ ] Monthly updates when convenient (`docker compose pull && docker compose up -d`)
 - [ ] Backup workflows before major experiments
 - [ ] Check disk space occasionally
 - [ ] Clean up old Docker images: `docker system prune`

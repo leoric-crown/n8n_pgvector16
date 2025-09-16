@@ -18,40 +18,32 @@ setup includes:
 - `init-data.sh`: PostgreSQL initialization script that creates non-root user and enables vector extension
 - `.env`: Environment variables for database credentials (copy from `.env.example`)
 - `prometheus.yml`: Prometheus configuration for optional monitoring setup
-- `myLANrootCA.crt`: Custom certificate for internal LAN usage
 
 ## Common Commands
 
 ### Start the stack
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 ### Stop the stack
 
 ```bash
-docker-compose stop
+docker compose stop
 ```
 
 ### Tear down with volume removal
 
 ```bash
-docker-compose down -v
+docker compose down -v
 ```
 
 ### View logs
 
 ```bash
-docker-compose logs -f n8n
-docker-compose logs -f postgres
-```
-
-### Management script (from parent directory)
-
-```bash
-../manage.bash up    # Start all compose stacks in parent directory
-../manage.bash down  # Stop all compose stacks
+docker compose logs -f n8n
+docker compose logs -f postgres
 ```
 
 ## Configuration
