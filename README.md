@@ -16,7 +16,32 @@ pgvector extension for AI/ML workflows and optional n8n-mcp integration for AI-a
 
 ## Quick Start
 
-### 1. Environment Setup
+### 1. Clone and Setup
+
+```bash
+git clone https://github.com/leoric-crown/n8n_pgvector16.git
+cd n8n_pgvector16
+```
+
+### 2. Install Development Tools (Optional but Recommended)
+
+```bash
+# Install uv for Python package management
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install pre-commit hooks for security and code quality
+uv tool install detect-secrets
+pre-commit install
+```
+
+**Security Features Enabled:**
+
+- Secret detection (API keys, passwords, tokens)
+- Environment file protection
+- Auto-formatting for Markdown and YAML
+- Docker security checks
+
+### 3. Environment Setup
 
 ```bash
 cp .env.example .env                     # Copy example environment file
@@ -25,7 +50,7 @@ nano .env                               # Edit with your credentials
 
 **IMPORTANT:** Change the default passwords and configure your domain in the `.env` file!
 
-### 2. Start the Stack
+### 4. Start the Stack
 
 ```bash
 docker compose up -d                    # Start all services
@@ -33,7 +58,7 @@ docker compose ps                       # Check status
 docker compose logs -f n8n              # View logs
 ```
 
-### 3. Access n8n
+### 5. Access n8n
 
 - **Local**: <http://n8n.lan:5678> (requires DNS setup)
 - **Production**: <https://n8n.leoric.org> (with Cloudflare Tunnel)
@@ -106,12 +131,38 @@ This stack includes pgvector extension for:
 
 The n8n-mcp service provides AI-assisted workflow development when configured with API keys.
 
-## Security Notes
+## Security & Development Features
+
+### Pre-commit Security Hooks
+
+This repository includes comprehensive security and code quality automation:
+
+```bash
+# Run all checks manually
+pre-commit run --all-files
+
+# Security features
+- detect-secrets: Prevents API keys, passwords, tokens from being committed
+- Environment protection: Blocks .env commits, validates .env.example
+- Private key detection: SSH keys, certificates, crypto material
+- Docker security: Basic Dockerfile security pattern scanning
+```
+
+### Auto-formatting & Code Quality
+
+- **Markdown**: Auto-wraps lines to 120 characters, fixes formatting
+- **YAML**: Prettier formatting with consistent styling
+- **File hygiene**: Removes trailing whitespace, fixes line endings
+- **Format validation**: YAML, JSON, TOML, XML syntax checking
+- **Shellcheck**: Shell script linting (when available)
+
+### Production Security
 
 - Database uses non-root user for n8n connections
-- Fixed encryption key for data consistency
+- Configurable encryption key (not hardcoded)
 - Environment variable isolation
-- Optional SSL certificate support for internal use
+- HTTPS protocol with proxy hop configuration
+- Blocked environment access in nodes (`N8N_BLOCK_ENV_ACCESS_IN_NODE=true`)
 
 ## Troubleshooting
 
@@ -135,8 +186,29 @@ docker compose logs --tail=50 postgres
 docker compose exec postgres pg_isready -U n8n_user -d n8n
 ```
 
-## Development
+## Development & Contributing
 
-See [CLAUDE.md](CLAUDE.md) for detailed development guidance and architecture overview.
+### Development Setup
 
-For production deployment with Cloudflare Tunnel, follow the [DEPLOYMENT.md](DEPLOYMENT.md) guide.
+```bash
+# Install development tools
+uv tool install detect-secrets
+pre-commit install
+
+# Test your changes
+pre-commit run --all-files
+docker compose config  # Validate docker-compose.yml
+```
+
+### Contributing Guidelines
+
+1. **Security First**: All commits are automatically scanned for secrets
+1. **Format Consistency**: Auto-formatters handle Markdown and YAML styling
+1. **Documentation**: Update relevant .md files for any configuration changes
+1. **Testing**: Validate docker-compose syntax and test local deployment
+
+### Architecture & Deployment
+
+- See [CLAUDE.md](CLAUDE.md) for detailed development guidance and architecture overview
+- For production deployment with Cloudflare Tunnel, follow the [DEPLOYMENT.md](DEPLOYMENT.md) guide
+- Check [MAINTENANCE.md](MAINTENANCE.md) for operational procedures and security best practices
