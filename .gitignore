@@ -1,0 +1,5 @@
+.env
+.env.backup
+credentials-backup.json
+
+.claude
