@@ -1,6 +1,11 @@
 volumes:
   db_storage:
   n8n_storage:
+  langfuse_data:
+  langfuse_clickhouse_data:
+  langfuse_clickhouse_logs:
+  langfuse_redis_data:
+  langfuse_minio_data:
   prometheus_data:
   grafana_data:
 
@@ -15,6 +20,9 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_NON_ROOT_USER=${POSTGRES_NON_ROOT_USER}
       - POSTGRES_NON_ROOT_PASSWORD=${POSTGRES_NON_ROOT_PASSWORD}
+      - LANGFUSE_DB_USER=${LANGFUSE_DB_USER}
+      - LANGFUSE_DB_PASSWORD=${LANGFUSE_DB_PASSWORD}
+      - LANGFUSE_DB_NAME=${LANGFUSE_DB_NAME}
     volumes:
       - db_storage:/var/lib/postgresql/data
       - ./init-data.sh:/docker-entrypoint-initdb.d/init-data.sh
@@ -78,10 +86,141 @@ services:
       - N8N_API_KEY=${N8N_API_KEY:-}
       - AUTH_TOKEN=${MCP_AUTH_TOKEN}
     ports:
-      - "8042:3000"
+      - "${MCP_PORT}:3000"
     depends_on:
       n8n:
         condition: service_started
+
+  # Start Langfuse Stack
+  # Langfuse Web Server - Main UI, API, and SDK endpoints for LLM observability
+  langfuse:
+    container_name: langfuse-app
+    image: docker.io/langfuse/langfuse:3
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://${LANGFUSE_DB_USER}:${LANGFUSE_DB_PASSWORD}@postgres:5432/${LANGFUSE_DB_NAME}
+      - NEXTAUTH_SECRET=${LANGFUSE_NEXTAUTH_SECRET}
+      - NEXTAUTH_URL=${LANGFUSE_URL}
+      - SALT=${LANGFUSE_SALT}
+      - ENCRYPTION_KEY=${LANGFUSE_ENCRYPTION_KEY}
+      - NODE_ENV=production
+      - LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES=false
+      - LANGFUSE_ENABLE_BLOB_STORAGE_FILE_LOG=${LANGFUSE_ENABLE_BLOB_STORAGE_FILE_LOG:-true}
+      - AUTH_DISABLE_SIGNUP=${LANGFUSE_AUTH_DISABLE_SIGNUP:-false}
+      - TELEMETRY_ENABLED=false
+      - LANGFUSE_S3_EVENT_UPLOAD_BUCKET=langfuse
+      - LANGFUSE_S3_EVENT_UPLOAD_PREFIX=events
+      - EMAIL_FROM_ADDRESS=
+      - SMTP_CONNECTION_URL=
+      - CLICKHOUSE_URL=http://clickhouse:8123
+      - CLICKHOUSE_USER=${LANGFUSE_CLICKHOUSE_USER:-default}
+      - CLICKHOUSE_PASSWORD=${LANGFUSE_CLICKHOUSE_PASSWORD:-}
+      - CLICKHOUSE_MIGRATION_URL=clickhouse://clickhouse:9000
+      - CLICKHOUSE_CLUSTER_ENABLED=false
+      - REDIS_URL=redis://:${LANGFUSE_REDIS_PASSWORD}@redis:6379
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_AUTH=${LANGFUSE_REDIS_PASSWORD}
+      - S3_ENDPOINT=http://minio:9000
+      - S3_ACCESS_KEY_ID=${LANGFUSE_S3_ACCESS_KEY}
+      - S3_SECRET_ACCESS_KEY=${LANGFUSE_S3_SECRET_KEY}
+      - S3_BUCKET_NAME=langfuse
+      - NEXT_PUBLIC_API_URL=${LANGFUSE_URL}
+      - NEXT_RUNTIME=nodejs
+    ports:
+      - "${LANGFUSE_PORT}:3000"
+    volumes:
+      - langfuse_data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/public/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Langfuse Async Worker - Background processing for events, traces, and async operations
+  langfuse-worker:
+    container_name: langfuse-worker
+    image: docker.io/langfuse/langfuse-worker:3
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://${LANGFUSE_DB_USER}:${LANGFUSE_DB_PASSWORD}@postgres:5432/${LANGFUSE_DB_NAME}
+      - REDIS_URL=redis://:${LANGFUSE_REDIS_PASSWORD}@redis:6379
+      - CLICKHOUSE_URL=http://clickhouse:8123
+      - CLICKHOUSE_USER=${LANGFUSE_CLICKHOUSE_USER:-default}
+      - CLICKHOUSE_PASSWORD=${LANGFUSE_CLICKHOUSE_PASSWORD:-}
+      - CLICKHOUSE_CLUSTER_ENABLED=false
+      - S3_ENDPOINT=http://minio:9000
+      - S3_ACCESS_KEY_ID=${LANGFUSE_S3_ACCESS_KEY}
+      - S3_SECRET_ACCESS_KEY=${LANGFUSE_S3_SECRET_KEY}
+      - S3_BUCKET_NAME=langfuse
+      - LANGFUSE_S3_EVENT_UPLOAD_BUCKET=langfuse
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  # Redis - Cache and Queue for Langfuse (sessions, background jobs, real-time features)
+  redis:
+    container_name: langfuse-redis
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --requirepass ${LANGFUSE_REDIS_PASSWORD}
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "auth", "${LANGFUSE_REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    volumes:
+      - langfuse_redis_data:/data
+
+  # ClickHouse - OLAP Database for observability data (traces, observations, scores for analytics)
+  clickhouse:
+    container_name: langfuse-clickhouse
+    image: clickhouse/clickhouse-server:24.7
+    restart: unless-stopped
+    environment:
+      - CLICKHOUSE_DB=langfuse
+      - CLICKHOUSE_USER=${LANGFUSE_CLICKHOUSE_USER}
+      - CLICKHOUSE_PASSWORD=${LANGFUSE_CLICKHOUSE_PASSWORD}
+    volumes:
+      - langfuse_clickhouse_data:/var/lib/clickhouse
+      - langfuse_clickhouse_logs:/var/log/clickhouse-server
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # MinIO - S3/Blob Storage for raw events, multi-modal attachments, and large objects
+  minio:
+    container_name: langfuse-minio
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=${LANGFUSE_S3_ACCESS_KEY}
+      - MINIO_ROOT_PASSWORD=${LANGFUSE_S3_SECRET_KEY}
+    volumes:
+      - langfuse_minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # End Langfuse
 
   # prometheus:
   #   image: prom/prometheus:latest
