@@ -23,6 +23,8 @@ services:
       - LANGFUSE_DB_USER=${LANGFUSE_DB_USER}
       - LANGFUSE_DB_PASSWORD=${LANGFUSE_DB_PASSWORD}
       - LANGFUSE_DB_NAME=${LANGFUSE_DB_NAME}
+    ports:
+      - "5432:5432"
     volumes:
       - db_storage:/var/lib/postgresql/data
       - ./init-data.sh:/docker-entrypoint-initdb.d/init-data.sh
@@ -221,6 +223,36 @@ services:
       retries: 3
 
   # End Langfuse
+
+  # pgAdmin - Web-based PostgreSQL administration tool
+  pgadmin:
+    container_name: n8n-pgadmin
+    image: dpage/pgadmin4:latest
+    restart: unless-stopped
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL:-admin@example.com}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD:-admin}
+      - PGADMIN_CONFIG_SERVER_MODE=False
+      - PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED=False
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # PostgreSQL MCP Server - Database query and management via MCP protocol
+  postgres-mcp:
+    container_name: postgres-mcp
+    image: crystaldba/postgres-mcp:latest
+    restart: unless-stopped
+    environment:
+      - DATABASE_URI=postgresql://${POSTGRES_NON_ROOT_USER}:${POSTGRES_NON_ROOT_PASSWORD}@postgres:5432/${POSTGRES_MCP_DB}
+    ports:
+      - "${POSTGRES_MCP_PORT}:8000"
+    command: ["--access-mode=unrestricted", "--transport=sse"]
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   # Tableau MCP Server - AI-powered tools for Tableau integration
   tableau-mcp:
