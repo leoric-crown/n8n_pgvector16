@@ -222,6 +222,31 @@ services:
 
   # End Langfuse
 
+  # Tableau MCP Server - AI-powered tools for Tableau integration
+  tableau-mcp:
+    container_name: tableau-mcp
+    build:
+      context: ./tableau-mcp
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - TRANSPORT=${TABLEAU_TRANSPORT:-http}
+      - PORT=${TABLEAU_MCP_PORT}
+      - SERVER=${TABLEAU_SERVER_URL}
+      - SITE_NAME=${TABLEAU_SITE_NAME:-}
+      - PAT_NAME=${TABLEAU_PAT_NAME:-}
+      - PAT_VALUE=${TABLEAU_PAT_VALUE:-}
+      - DATASOURCE_CREDENTIALS=${TABLEAU_DATASOURCE_CREDENTIALS:-}
+      - DEFAULT_LOG_LEVEL=${TABLEAU_DEFAULT_LOG_LEVEL:-debug}
+      - INCLUDE_TOOLS=${TABLEAU_INCLUDE_TOOLS:-}
+      - EXCLUDE_TOOLS=${TABLEAU_EXCLUDE_TOOLS:-}
+      - MAX_RESULT_LIMIT=${TABLEAU_MAX_RESULT_LIMIT:-}
+      - DISABLE_QUERY_DATASOURCE_FILTER_VALIDATION=${TABLEAU_DISABLE_QUERY_DATASOURCE_FILTER_VALIDATION:-}
+      - DISABLE_METADATA_API_REQUESTS=${TABLEAU_DISABLE_METADATA_API_REQUESTS:-}
+    ports:
+      - "${TABLEAU_MCP_PORT}:3927"
+
   # prometheus:
   #   image: prom/prometheus:latest
   #   restart: unless-stopped

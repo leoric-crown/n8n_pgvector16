@@ -1,4 +1,5 @@
 .env
+.env.tableau-mcp
 .env.backup
 credentials-backup.json
 
