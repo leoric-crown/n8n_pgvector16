@@ -83,7 +83,34 @@ install community nodes. This one-time setup ensures proper permissions.
 **Note:** After this setup, community nodes installed through n8n's interface will automatically persist across
 restarts.
 
-### 6. Access n8n
+### 6. Configure S3 Storage for Langfuse (Required for LLM Observability)
+
+If you're using the Langfuse LLM observability stack, you need to create the required S3 bucket:
+
+**For MinIO (default local setup):**
+
+```bash
+# Start MinIO service first
+docker compose up minio -d
+
+# Access MinIO web console at http://localhost:9001
+# Login credentials (from .env file):
+# - Access Key: LANGFUSE_S3_ACCESS_KEY value
+# - Secret Key: LANGFUSE_S3_SECRET_KEY value
+
+# Create a bucket named 'langfuse' through the web interface
+```
+
+**For AWS S3 (production):**
+
+- Create an S3 bucket named `langfuse` (or your preferred name)
+- Update environment variables in `.env` to point to AWS S3 instead of MinIO
+- Ensure IAM permissions include `s3:PutObject`, `s3:ListBucket`, and `s3:GetObject`
+
+**Why this step?** Langfuse requires an S3-compatible bucket to store event data, traces, and observability information.
+Without this bucket, Langfuse will fail with S3 credential errors.
+
+### 7. Access n8n
 
 - **Local**: <http://n8n.lan:5678> (requires DNS setup)
 - **Production**: <https://n8n.leoric.org> (with Cloudflare Tunnel)
@@ -124,8 +151,25 @@ MCP_AUTH_TOKEN=your_secure_auth_token_here
 
 - **postgres**: PostgreSQL 16 with pgvector extension
 - **n8n**: Main workflow automation service
+- **langfuse**: LLM observability and analytics platform (v3)
+- **langfuse-worker**: Async event processor for Langfuse
+- **minio**: S3-compatible object storage for event buffering
+- **redis**: Cache and queue management
+- **clickhouse**: OLAP database for traces/observations/scores
 - **n8n-mcp**: AI assistant for workflow development (optional)
 - **prometheus/grafana**: Monitoring stack (commented out)
+
+### Langfuse v3 Architecture (Important!)
+
+Langfuse v3 uses a distributed database architecture for optimal performance:
+
+- **PostgreSQL**: Stores authentication, projects, API keys, and configuration only
+- **ClickHouse**: Stores all traces, observations, and scores (the actual LLM data)
+- **MinIO/S3**: Buffers raw events before processing
+- **Redis**: Manages queues and caching
+
+**Note**: The `traces`, `observations`, and `scores` tables in PostgreSQL remain empty by design in v3. All
+observability data is stored in ClickHouse for better performance at scale.
 
 ## Management
 

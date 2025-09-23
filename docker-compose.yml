@@ -123,7 +123,6 @@ services:
       - CLICKHOUSE_PASSWORD=${LANGFUSE_CLICKHOUSE_PASSWORD:-}
       - CLICKHOUSE_MIGRATION_URL=clickhouse://clickhouse:9000
       - CLICKHOUSE_CLUSTER_ENABLED=false
-      - REDIS_URL=redis://:${LANGFUSE_REDIS_PASSWORD}@redis:6379
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_AUTH=${LANGFUSE_REDIS_PASSWORD}
@@ -131,6 +130,17 @@ services:
       - S3_ACCESS_KEY_ID=${LANGFUSE_S3_ACCESS_KEY}
       - S3_SECRET_ACCESS_KEY=${LANGFUSE_S3_SECRET_KEY}
       - S3_BUCKET_NAME=langfuse
+      - S3_REGION=us-east-1
+      - S3_FORCE_PATH_STYLE=true
+      # Langfuse S3 Event Upload Configuration (MinIO)
+      - AWS_REGION=us-east-1
+      - LANGFUSE_S3_EVENT_UPLOAD_BUCKET=langfuse
+      - LANGFUSE_S3_EVENT_UPLOAD_REGION=us-east-1
+      - LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID=${LANGFUSE_S3_ACCESS_KEY}
+      - LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY=${LANGFUSE_S3_SECRET_KEY}
+      - LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT=http://minio:9000
+      - LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE=true
+      - LANGFUSE_S3_EVENT_UPLOAD_PREFIX=events/
       - NEXT_PUBLIC_API_URL=${LANGFUSE_URL}
       - NEXT_RUNTIME=nodejs
     ports:
@@ -154,7 +164,9 @@ services:
     restart: unless-stopped
     environment:
       - DATABASE_URL=postgresql://${LANGFUSE_DB_USER}:${LANGFUSE_DB_PASSWORD}@postgres:5432/${LANGFUSE_DB_NAME}
-      - REDIS_URL=redis://:${LANGFUSE_REDIS_PASSWORD}@redis:6379
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_AUTH=${LANGFUSE_REDIS_PASSWORD}
       - CLICKHOUSE_URL=http://clickhouse:8123
       - CLICKHOUSE_USER=${LANGFUSE_CLICKHOUSE_USER:-default}
       - CLICKHOUSE_PASSWORD=${LANGFUSE_CLICKHOUSE_PASSWORD:-}
@@ -163,7 +175,16 @@ services:
       - S3_ACCESS_KEY_ID=${LANGFUSE_S3_ACCESS_KEY}
       - S3_SECRET_ACCESS_KEY=${LANGFUSE_S3_SECRET_KEY}
       - S3_BUCKET_NAME=langfuse
+      - S3_REGION=us-east-1
+      - S3_FORCE_PATH_STYLE=true
+      # Langfuse S3 Event Upload Configuration (MinIO)
       - LANGFUSE_S3_EVENT_UPLOAD_BUCKET=langfuse
+      - LANGFUSE_S3_EVENT_UPLOAD_REGION=us-east-1
+      - LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID=${LANGFUSE_S3_ACCESS_KEY}
+      - LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY=${LANGFUSE_S3_SECRET_KEY}
+      - LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT=http://minio:9000
+      - LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE=true
+      - LANGFUSE_S3_EVENT_UPLOAD_PREFIX=events/
     depends_on:
       postgres:
         condition: service_healthy
@@ -179,9 +200,11 @@ services:
     container_name: langfuse-redis
     image: redis:7-alpine
     restart: unless-stopped
-    command: redis-server --requirepass ${LANGFUSE_REDIS_PASSWORD}
+    command: >
+      --requirepass ${LANGFUSE_REDIS_PASSWORD:-myredissecret}
+      --maxmemory-policy noeviction
     healthcheck:
-      test: ["CMD", "redis-cli", "--no-auth-warning", "auth", "${LANGFUSE_REDIS_PASSWORD}", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${LANGFUSE_REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 3
