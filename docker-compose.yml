@@ -1,6 +1,7 @@
 volumes:
   db_storage:
   n8n_storage:
+  n8n_nodes:
   langfuse_data:
   langfuse_clickhouse_data:
   langfuse_clickhouse_logs:
@@ -71,6 +72,8 @@ services:
       - ${DNS_SERVER}
     ports:
       - "${N8N_PORT}:5678"
+    volumes:
+      - n8n_nodes:/home/node/.n8n/nodes
     depends_on:
       postgres:
         condition: service_healthy

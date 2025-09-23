@@ -3,6 +3,8 @@
 .env.backup
 credentials-backup.json
 
+n8n-nodes/
+
 .venv/
 node_modules/
 .vscode/

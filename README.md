@@ -55,10 +55,35 @@ nano .env                               # Edit with your credentials
 ```bash
 docker compose up -d                    # Start all services
 docker compose ps                       # Check status
-docker compose logs -f n8n              # View logs
 ```
 
-### 5. Access n8n
+**Note:** n8n will fail to start initially due to volume permission issues. This is expected - continue to step 5.
+
+### 5. Initialize Community Node Storage (Required After First Start)
+
+```bash
+# Stop the stack first
+docker compose down
+```
+
+```bash
+# Set proper permissions for n8n community nodes volume
+docker run --rm -v n8n_pgvector16_n8n_nodes:/nodes alpine chown -R 1000:1000 /nodes
+
+# If you have existing community nodes to migrate:
+docker run --rm -v "$(pwd)/n8n-nodes":/source -v n8n_pgvector16_n8n_nodes:/target alpine sh -c "cp -r /source/* /target/ && chown -R 1000:1000 /target"
+
+# Restart the stack
+docker compose up -d
+```
+
+**Why this step?** Docker creates the volume with root ownership. n8n runs as user 1000 and needs write permissions to
+install community nodes. This one-time setup ensures proper permissions.
+
+**Note:** After this setup, community nodes installed through n8n's interface will automatically persist across
+restarts.
+
+### 6. Access n8n
 
 - **Local**: <http://n8n.lan:5678> (requires DNS setup)
 - **Production**: <https://n8n.leoric.org> (with Cloudflare Tunnel)
