@@ -7,6 +7,7 @@ volumes:
   langfuse_clickhouse_logs:
   langfuse_redis_data:
   langfuse_minio_data:
+  pgadmin_data:
   prometheus_data:
   grafana_data:
 
@@ -263,6 +264,8 @@ services:
       - PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED=False
     ports:
       - "${PGADMIN_PORT:-5050}:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
     depends_on:
       postgres:
         condition: service_healthy
