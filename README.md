@@ -238,8 +238,8 @@ pre-commit run --all-files
 ### Common Issues
 
 1. **Port conflicts**: Change ports in docker-compose.yml if 5678 is in use
-1. **Database connection**: Verify credentials in .env match database settings
-1. **DNS resolution**: Configure n8n.lan in your DNS or hosts file for local access
+2. **Database connection**: Verify credentials in .env match database settings
+3. **DNS resolution**: Configure n8n.lan in your DNS or hosts file for local access
 
 ### Logs and Debugging
 
@@ -272,9 +272,9 @@ docker compose config  # Validate docker-compose.yml
 ### Contributing Guidelines
 
 1. **Security First**: All commits are automatically scanned for secrets
-1. **Format Consistency**: Auto-formatters handle Markdown and YAML styling
-1. **Documentation**: Update relevant .md files for any configuration changes
-1. **Testing**: Validate docker-compose syntax and test local deployment
+2. **Format Consistency**: Auto-formatters handle Markdown and YAML styling
+3. **Documentation**: Update relevant .md files for any configuration changes
+4. **Testing**: Validate docker-compose syntax and test local deployment
 
 ### Architecture & Deployment
 

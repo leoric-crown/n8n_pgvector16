@@ -6,16 +6,27 @@ This project provides a comprehensive Docker Compose stack for running the n8n w
 PostgreSQL database backend. It is designed for homelab and production use, with a focus on security, scalability, and
 AI/ML capabilities.
 
-The key technologies used in this project are:
+## Core Stack Technologies
+
+The containerized stack includes:
 
 - **n8n**: A powerful, open-source workflow automation tool.
 - **PostgreSQL**: A robust, open-source object-relational database system.
 - **pgvector**: A PostgreSQL extension for vector similarity search, enabling AI/ML applications.
+- **Langfuse v3**: LLM observability platform with distributed architecture.
+- **MinIO**: S3-compatible object storage for Langfuse event buffering.
+- **Redis**: Cache and queue for Langfuse background processing.
+- **ClickHouse**: OLAP database for traces, observations, and scores.
 - **Docker Compose**: A tool for defining and running multi-container Docker applications.
-- **n8n-mcp**: An optional AI assistant for workflow development.
 - **Prometheus & Grafana**: Optional services for monitoring and metrics.
 
-The architecture is based on a set of interconnected Docker containers, orchestrated by Docker Compose. The `n8n`
+## External Homelab Integration
+
+For enhanced homelab functionality, this stack can integrate with:
+
+- **Ollama**: Native LLM server for local AI model inference (installed on host system, not containerized)
+
+The core architecture is based on a set of interconnected Docker containers, orchestrated by Docker Compose. The `n8n`
 service is the core of the application, providing the workflow automation capabilities. It is connected to a `postgres`
 database service, which is used for data storage. The `pgvector` extension is enabled in the database, allowing for
 advanced AI/ML workflows.
@@ -31,7 +42,7 @@ To build and run this project, you will need to have Docker and Docker Compose i
    cd n8n_pgvector16
    ```
 
-1. **Set up the environment:**
+2. **Set up the environment:**
 
    Copy the example environment file and edit it with your credentials:
 
@@ -42,7 +53,7 @@ To build and run this project, you will need to have Docker and Docker Compose i
 
    **IMPORTANT:** Change the default passwords and configure your domain in the `.env` file.
 
-1. **Start the stack:**
+3. **Start the stack:**
 
    ```bash
    docker compose up -d
@@ -54,7 +65,7 @@ To build and run this project, you will need to have Docker and Docker Compose i
    docker compose ps
    ```
 
-1. **Access n8n:**
+4. **Access n8n:**
 
    - **Local**: `http://n8n.lan:5678` (requires DNS setup)
    - **Production**: `https://n8n.leoric.org` (with Cloudflare Tunnel)

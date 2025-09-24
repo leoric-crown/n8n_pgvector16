@@ -51,7 +51,7 @@ repos:
         additional_dependencies:
           - mdformat-gfm
           - mdformat-tables
-        args: ["--wrap", "120"]
+        args: ["--wrap", "120", "--number"]
 
   - repo: https://github.com/igorshubovych/markdownlint-cli
     rev: v0.42.0

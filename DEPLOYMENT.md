@@ -2,12 +2,28 @@
 
 ## Prerequisites
 
-### 1. Cloudflare Account Setup
+### 1. Core Stack Prerequisites
+
+#### Docker Environment
+
+- Docker and Docker Compose installed
+- Sufficient system resources (minimum 4GB RAM recommended)
+
+#### Cloudflare Account Setup
 
 - Domain `<your-domain>` added to Cloudflare
 - Domain nameservers pointing to Cloudflare
 
-### 2. Verify Domain in Cloudflare
+### 2. Optional Homelab Components
+
+For enhanced homelab functionality, you may also want:
+
+- **Ollama** (for local LLM inference)
+  - Install natively on a host on your local network
+  - See [OLLAMA_INTEGRATION.md](./OLLAMA_INTEGRATION.md) for setup guides
+  - Not required for basic n8n functionality
+
+### 3. Verify Domain in Cloudflare
 
 ```bash
 # Check nameservers point to Cloudflare
@@ -36,25 +52,25 @@ this is the simplest method:
    sudo dpkg -i cloudflared-linux-amd64.deb
    ```
 
-1. **Authenticate with Cloudflare**:
+2. **Authenticate with Cloudflare**:
 
    ```bash
    cloudflared tunnel login
    ```
 
-1. **Create tunnel**:
+3. **Create tunnel**:
 
    ```bash
    cloudflared tunnel create n8n-<your-domain>
    ```
 
-1. **Route DNS to tunnel**:
+4. **Route DNS to tunnel**:
 
    ```bash
    cloudflared tunnel route dns n8n-<your-domain> n8n.<your-domain>
    ```
 
-1. **Configure cloudflared**: Create `/etc/cloudflared/config.yml`:
+5. **Configure cloudflared**: Create `/etc/cloudflared/config.yml`:
 
    ```yaml
    tunnel: <TUNNEL_UUID>  # Get from: cloudflared tunnel info n8n-<your-domain>
@@ -76,14 +92,14 @@ this is the simplest method:
    ls /root/.cloudflared/  # if run with sudo
    ```
 
-1. **Install and start tunnel service**:
+6. **Install and start tunnel service**:
 
    ```bash
    sudo cloudflared service install
    sudo systemctl enable --now cloudflared
    ```
 
-1. **Verify tunnel is running**:
+7. **Verify tunnel is running**:
 
    ```bash
    sudo systemctl status cloudflared
@@ -176,9 +192,9 @@ docker compose logs -f n8n
 ### 3. Initial n8n Setup
 
 1. Access \<<https://n8n>.<your-domain>> (Cloudflare handles SSL and routing)
-1. Create admin account
-1. Configure base URL in settings
-1. Generate API key for n8n-mcp integration
+2. Create admin account
+3. Configure base URL in settings
+4. Generate API key for n8n-mcp integration
 
 ### 4. Configure n8n-mcp Integration
 
@@ -286,8 +302,8 @@ docker compose exec n8n sh -c 'nc -zv postgres 5432'
 #### Simple Cloudflare Access Protection
 
 1. Go to **Zero Trust > Access > Applications**
-1. Select your n8n application
-1. Add basic email protection:
+2. Select your n8n application
+3. Add basic email protection:
    - **Policy name**: `Personal Access`
    - **Action**: `Allow`
    - **Include**: `Emails` → Your personal email

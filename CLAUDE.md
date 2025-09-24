@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Architecture Overview
 
 This is a Docker Compose stack for running n8n (workflow automation tool) with PostgreSQL as the database backend. The
-setup includes:
+containerized stack includes:
 
 - **PostgreSQL with pgvector**: Uses `pgvector/pgvector:pg16` image with vector extension for AI/ML workflows
 - **n8n**: Latest n8n workflow automation tool connected to PostgreSQL
@@ -14,6 +14,13 @@ setup includes:
 - **Redis**: Cache and queue for Langfuse background processing
 - **ClickHouse**: OLAP database for traces, observations, and scores
 - **Optional monitoring**: Prometheus and Grafana (currently commented out)
+
+### External Homelab Dependencies
+
+- **Ollama**: Native LLM server (installed on host system, not containerized) for local AI model inference
+  - Runs independently on the host OS
+  - Accessible to containers via `host.docker.internal`
+  - See [OLLAMA_INTEGRATION.md](./OLLAMA_INTEGRATION.md) for setup and optimization guides
 
 ### Langfuse v3 Database Architecture (CRITICAL)
 
@@ -48,8 +55,8 @@ Langfuse v3 uses a distributed storage architecture:
 **Data Flow:**
 
 1. n8n/SDK → Langfuse API → MinIO (immediate storage)
-1. Worker reads from MinIO → Processes events → Writes to ClickHouse
-1. UI queries ClickHouse for traces (NOT PostgreSQL)
+2. Worker reads from MinIO → Processes events → Writes to ClickHouse
+3. UI queries ClickHouse for traces (NOT PostgreSQL)
 
 ## Key Components
 
@@ -98,22 +105,33 @@ docker compose logs -f postgres
 
 ## Environment Setup
 
+### Core Stack Setup
+
 1. Copy `.env.example` to `.env` and update passwords
 
-1. Configure DNS or hosts file for `n8n.lan` resolution
+2. Configure DNS or hosts file for `n8n.lan` resolution
 
-1. **CRITICAL: Create S3 bucket for Langfuse** (required for LLM observability):
+3. **CRITICAL: Create S3 bucket for Langfuse** (required for LLM observability):
 
    - **MinIO (local)**: Access <http://localhost:9001>, create bucket named `langfuse`
    - **AWS S3 (production)**: Create S3 bucket with proper IAM permissions
    - **Without this step**: Langfuse will fail with S3 credential errors
 
-1. Install pre-commit hooks for security and code quality:
+4. Install pre-commit hooks for security and code quality:
 
    ```bash
    uv tool install detect-secrets
    pre-commit install
    ```
+
+### External Homelab Components
+
+For complete homelab functionality, you may also want to set up:
+
+- **Ollama for local LLM inference** (see [OLLAMA_INTEGRATION.md](./OLLAMA_INTEGRATION.md)):
+  - Install Ollama natively on host system
+  - Configure for container integration via `host.docker.internal`
+  - Download recommended models for your hardware
 
 ## Pre-commit Hooks
 
@@ -130,6 +148,15 @@ Comprehensive security and code quality hooks with automatic formatting:
 The formatters automatically fix line length issues in Markdown and YAML files.
 
 Run manually: `pre-commit run --all-files`
+
+## Homelab LLM Integration Documentation
+
+For complete homelab setup with local LLM capabilities, see the comprehensive documentation:
+
+- **[OLLAMA_INTEGRATION.md](./OLLAMA_INTEGRATION.md)** - Native Ollama setup and integration guide
+- **[RTX_4090_OPTIMIZATION.md](./RTX_4090_OPTIMIZATION.md)** - NVIDIA RTX 4090 optimization guide
+- **[M4_PRO_OPTIMIZATION.md](./M4_PRO_OPTIMIZATION.md)** - Apple Silicon M4 Pro optimization guide
+- **[MODEL_SELECTION_GUIDE.md](./MODEL_SELECTION_GUIDE.md)** - Model recommendations and benchmarks
 
 ## Monitoring (Optional)
 
