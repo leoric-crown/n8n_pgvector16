@@ -20,7 +20,7 @@ containerized stack includes:
 - **Ollama**: Native LLM server (installed on host system, not containerized) for local AI model inference
   - Runs independently on the host OS
   - Accessible to containers via `host.docker.internal`
-  - See [OLLAMA_INTEGRATION.md](./OLLAMA_INTEGRATION.md) for setup and optimization guides
+  - See [OLLAMA_INTEGRATION.md](./ollama/OLLAMA_INTEGRATION.md) for setup and optimization guides
 
 ### Langfuse v3 Database Architecture (CRITICAL)
 
@@ -128,7 +128,7 @@ docker compose logs -f postgres
 
 For complete homelab functionality, you may also want to set up:
 
-- **Ollama for local LLM inference** (see [OLLAMA_INTEGRATION.md](./OLLAMA_INTEGRATION.md)):
+- **Ollama for local LLM inference** (see [OLLAMA_INTEGRATION.md](./ollama/OLLAMA_INTEGRATION.md)):
   - Install Ollama natively on host system
   - Configure for container integration via `host.docker.internal`
   - Download recommended models for your hardware
@@ -153,10 +153,10 @@ Run manually: `pre-commit run --all-files`
 
 For complete homelab setup with local LLM capabilities, see the comprehensive documentation:
 
-- **[OLLAMA_INTEGRATION.md](./OLLAMA_INTEGRATION.md)** - Native Ollama setup and integration guide
-- **[RTX_4090_OPTIMIZATION.md](./RTX_4090_OPTIMIZATION.md)** - NVIDIA RTX 4090 optimization guide
-- **[M4_PRO_OPTIMIZATION.md](./M4_PRO_OPTIMIZATION.md)** - Apple Silicon M4 Pro optimization guide
-- **[MODEL_SELECTION_GUIDE.md](./MODEL_SELECTION_GUIDE.md)** - Model recommendations and benchmarks
+- **[OLLAMA_INTEGRATION.md](./ollama/OLLAMA_INTEGRATION.md)** - Native Ollama setup and integration guide
+- **[RTX_4090_OPTIMIZATION.md](./ollama/RTX_4090_OPTIMIZATION.md)** - NVIDIA RTX 4090 optimization guide
+- **[M4_PRO_OPTIMIZATION.md](./ollama/M4_PRO_OPTIMIZATION.md)** - Apple Silicon M4 Pro optimization guide
+- **[MODEL_SELECTION_GUIDE.md](./ollama/MODEL_SELECTION_GUIDE.md)** - Model recommendations and benchmarks
 
 ## Monitoring (Optional)
 

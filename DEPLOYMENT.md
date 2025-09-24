@@ -20,7 +20,7 @@ For enhanced homelab functionality, you may also want:
 
 - **Ollama** (for local LLM inference)
   - Install natively on a host on your local network
-  - See [OLLAMA_INTEGRATION.md](./OLLAMA_INTEGRATION.md) for setup guides
+  - See [OLLAMA_INTEGRATION.md](./ollama/OLLAMA_INTEGRATION.md) for setup guides
   - Not required for basic n8n functionality
 
 ### 3. Verify Domain in Cloudflare
