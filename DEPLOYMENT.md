@@ -116,10 +116,22 @@ this is the simplest method:
 
 ### 1. Update .env file
 
+#### Option A: Automated Setup (Recommended)
+
+```bash
+# Generate .env with secure passwords (avoids Docker Compose issues)
+python3 setup-env.py --auto --n8n-host n8n.<your-domain>
+```
+
+#### Option B: Manual Setup
+
 ```bash
 # Copy example and edit
 cp .env.example .env
 ```
+
+**Warning:** If setting passwords manually, avoid using `$` characters as they cause Docker Compose variable
+interpolation errors.
 
 Update the following variables in `.env`:
 
@@ -170,7 +182,17 @@ cat .env
 docker compose config
 ```
 
-### 2. Deploy Stack
+### 2. Optional Components Setup
+
+```bash
+# OPTIONAL: Initialize tableau-mcp submodule (only if using Tableau integration)
+# git submodule init
+# git submodule update
+
+# If not using tableau-mcp, comment it out in docker-compose.yml to avoid build errors
+```
+
+### 3. Deploy Stack
 
 ```bash
 # Pull latest images

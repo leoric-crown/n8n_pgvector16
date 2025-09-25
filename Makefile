@@ -14,7 +14,7 @@ RESET = \033[0m
 # Default target
 .DEFAULT_GOAL := help
 
-.PHONY: help up down restart pull status logs health ports env secrets init validate db-shell pgadmin update prune
+.PHONY: help up down restart pull status logs setup init validate db-shell prune
 
 # Help target
 help: ## Show this help message
@@ -55,75 +55,43 @@ logs: ## Follow logs for all services
 	@printf "$(CYAN)Following logs for all services (Ctrl+C to exit)...$(RESET)\n"
 	docker compose logs -f
 
-health: ## Check service health endpoints
-	@printf "$(CYAN)Checking service health...$(RESET)\n"
-	@printf "$(BLUE)n8n Health:$(RESET)\n"
-	@curl -s -o /dev/null -w "  Status: %{http_code}\n" http://localhost:${N8N_PORT:-5678}/healthz || printf "  $(RED)Service not responding$(RESET)\n"
-	@printf "$(BLUE)Langfuse Health:$(RESET)\n"
-	@curl -s -o /dev/null -w "  Status: %{http_code}\n" http://localhost:${LANGFUSE_PORT:-9119}/api/public/health || printf "  $(RED)Service not responding$(RESET)\n"
-	@printf "$(BLUE)pgAdmin Health:$(RESET)\n"
-	@curl -s -o /dev/null -w "  Status: %{http_code}\n" http://localhost:${PGADMIN_PORT:-5050}/misc/ping || printf "  $(RED)Service not responding$(RESET)\n"
-
-ports: ## List all exposed ports
-	@printf "$(CYAN)Exposed Ports:$(RESET)\n"
-	@printf "$(BLUE)n8n:$(RESET)          http://localhost:${N8N_PORT:-5678}\n"
-	@printf "$(BLUE)Langfuse:$(RESET)     http://localhost:${LANGFUSE_PORT:-9119}\n"
-	@printf "$(BLUE)pgAdmin:$(RESET)      http://localhost:${PGADMIN_PORT:-5050}\n"
-	@printf "$(BLUE)n8n-mcp:$(RESET)      http://localhost:${MCP_PORT:-8042}\n"
-	@printf "$(BLUE)postgres-mcp:$(RESET) http://localhost:${POSTGRES_MCP_PORT:-8000}\n"
-	@printf "$(BLUE)tableau-mcp:$(RESET)  http://localhost:${TABLEAU_MCP_PORT:-3927}\n"
-	@printf "$(BLUE)MinIO:$(RESET)        http://localhost:9000 (API), http://localhost:9001 (Console)\n"
-	@printf "$(BLUE)PostgreSQL:$(RESET)   localhost:5432\n"
-
 # Environment Setup
-env: ## Copy .env.example to .env if missing
-	@if [ ! -f .env ]; then \
-		printf "$(YELLOW)Creating .env from .env.example...$(RESET)\n"; \
-		cp .env.example .env; \
-		printf "$(GREEN).env file created$(RESET)\n"; \
-		printf "$(YELLOW)Please edit .env with your specific values$(RESET)\n"; \
+setup: ## Generate .env with secure credentials automatically
+	@printf "$(CYAN)Generating .env with secure credentials...$(RESET)\n"
+	@if python3 setup-env.py --auto; then \
+		printf "$(GREEN).env file created with secure credentials$(RESET)\n"; \
 	else \
-		printf "$(GREEN).env file already exists$(RESET)\n"; \
+		printf "$(RED)Setup failed - see message above$(RESET)\n"; \
+		exit 1; \
 	fi
 
-secrets: ## Generate required secrets/keys for .env
-	@printf "$(CYAN)Generating secrets...$(RESET)\n"
-	@printf "$(BLUE)N8N_ENCRYPTION_KEY:$(RESET)        $$(openssl rand -hex 32)\n"
-	@printf "$(BLUE)MCP_AUTH_TOKEN:$(RESET)            $$(openssl rand -hex 32)\n"
-	@printf "$(BLUE)LANGFUSE_NEXTAUTH_SECRET:$(RESET)  $$(openssl rand -hex 32)\n"
-	@printf "$(BLUE)LANGFUSE_ENCRYPTION_KEY:$(RESET)   $$(openssl rand -hex 32)\n"
-	@printf "$(BLUE)LANGFUSE_SALT:$(RESET)             $$(openssl rand -hex 32)\n"
-	@printf "$(BLUE)LANGFUSE_CLICKHOUSE_PASSWORD:$(RESET) $$(openssl rand -base64 12)\n"
-	@printf "$(BLUE)LANGFUSE_REDIS_PASSWORD:$(RESET)   $$(openssl rand -base64 24)\n"
-	@printf "$(BLUE)LANGFUSE_S3_ACCESS_KEY:$(RESET)    $$(openssl rand -hex 10 | tr 'a-f' 'A-F')\n"
-	@printf "$(BLUE)LANGFUSE_S3_SECRET_KEY:$(RESET)    $$(openssl rand -base64 30)\n"
-	@printf "\n$(YELLOW)Copy these values to your .env file$(RESET)\n"
-
-init: env pull up ## Complete initial setup (env + pull + up)
-	@printf "$(GREEN)Initial setup complete!$(RESET)\n"
-	@printf "$(CYAN)Next steps:$(RESET)\n"
-	@printf "  1. Edit .env with your specific values (run 'make secrets' for generated keys)\n"
-	@printf "  2. Run 'make restart' after updating .env\n"
-	@printf "  3. Access services at the ports listed in 'make ports'\n"
+init: setup pull up ## Complete initial setup (automated env + pull + up)
+	@printf "$(GREEN)Automated setup complete!$(RESET)\n"
+	@printf "\n$(YELLOW)⚠️  REQUIRED MANUAL STEPS:$(RESET)\n"
+	@printf "\n$(CYAN)1. Fix n8n volume permissions (required for community nodes):$(RESET)\n"
+	@printf "   make down\n"
+	@printf "   docker run --rm -v n8n_pgvector16_n8n_nodes:/nodes alpine chown -R 1000:1000 /nodes\n"
+	@printf "   make up\n"
+	@printf "\n$(CYAN)2. Create Langfuse S3 bucket (required for LLM observability):$(RESET)\n"
+	@printf "   • Open: http://localhost:9001\n"
+	@printf "   • Login with S3 credentials from your .env file\n"
+	@printf "   • Create bucket named: langfuse\n"
+	@printf "\n$(CYAN)3. Access your services:$(RESET)\n"
+	@printf "   • n8n: http://localhost:5678\n"
+	@printf "   • Langfuse: http://localhost:9119\n"
+	@printf "   • pgAdmin: http://localhost:5050 (admin@example.com / password in .env)\n"
+	@printf "\n$(GREEN)💡 Run 'make help' for more commands$(RESET)\n"
 
 validate: ## Validate docker-compose syntax
 	@printf "$(CYAN)Validating docker-compose configuration...$(RESET)\n"
 	@docker compose config > /dev/null && printf "$(GREEN)Configuration is valid$(RESET)\n" || printf "$(RED)Configuration has errors$(RESET)\n"
 
 # Database Operations
-db-shell: ## Access PostgreSQL shell
+db-shell: ## Access PostgreSQL shell as n8n user
 	@printf "$(CYAN)Connecting to PostgreSQL shell...$(RESET)\n"
-	docker compose exec postgres psql -U "$${POSTGRES_NON_ROOT_USER:-n8n_user}" -d "$${POSTGRES_DB:-n8n}"
-
-pgadmin: ## Open pgAdmin interface
-	@printf "$(CYAN)pgAdmin is available at:$(RESET)\n"
-	@printf "$(BLUE)URL:$(RESET) http://localhost:${PGADMIN_PORT:-5050}\n"
-	@printf "$(BLUE)Login:$(RESET) $${PGADMIN_DEFAULT_EMAIL:-admin@example.com}\n"
-	@printf "$(BLUE)Password:$(RESET) Check your .env file\n"
+	docker compose exec postgres psql -U n8n_user -d n8n
 
 # Maintenance
-update: pull restart ## Pull latest images and restart services
-	@printf "$(GREEN)Stack updated successfully$(RESET)\n"
 
 prune: ## Clean unused Docker resources (non-destructive)
 	@printf "$(YELLOW)Cleaning unused Docker resources...$(RESET)\n"

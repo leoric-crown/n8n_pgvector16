@@ -47,7 +47,7 @@ services:
       - DB_POSTGRESDB_DATABASE=${POSTGRES_DB}
       - DB_POSTGRESDB_USER=${POSTGRES_NON_ROOT_USER}
       - DB_POSTGRESDB_PASSWORD=${POSTGRES_NON_ROOT_PASSWORD}
-      - N8N_PROTOCOL=https
+      - N8N_PROTOCOL=${N8N_PROTOCOL}
       - N8N_HOST=${N8N_HOST}
       # 1 Hop for Caddy Proxy, 1 for Cloudflare
       - N8N_PROXY_HOPS=2
@@ -55,7 +55,7 @@ services:
       - N8N_RUNNERS_ENABLED=true
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
       - N8N_BLOCK_ENV_ACCESS_IN_NODE=true
-      - WEBHOOK_URL=https://${N8N_HOST}
+      - WEBHOOK_URL=${N8N_WEBHOOK_URL}
       # Uncomment the following if you'll be using Prometheus and Grafana for monitoring
       # Also uncomment the actual services below
       # - N8N_METRICS=true

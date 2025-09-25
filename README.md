@@ -21,7 +21,17 @@ pgvector extension for AI/ML workflows and optional n8n-mcp integration for AI-a
 ```bash
 git clone https://github.com/leoric-crown/n8n_pgvector16.git
 cd n8n_pgvector16
+
+# OPTIONAL: Initialize git submodules (only if using tableau-mcp)
+git submodule init
+git submodule update
 ```
+
+**Note:** The `tableau-mcp` service is optional. If you don't need Tableau integration:
+
+- Skip the submodule initialization above
+- Comment out the `tableau-mcp` service in `docker-compose.yml`
+- Otherwise, Docker Compose will fail with "Dockerfile not found" errors
 
 ### 2. Install Development Tools (Optional but Recommended)
 
@@ -43,19 +53,40 @@ pre-commit install
 
 ### 3. Environment Setup
 
+#### Quick Setup (Recommended)
+
 ```bash
-cp .env.example .env                    # Copy example environment file
-nano .env                               # Edit with your credentials
+make setup                              # Generate .env with secure credentials
 ```
 
-**IMPORTANT:** Change the default passwords and configure your domain in the `.env` file!
+#### Alternative Methods
+
+```bash
+# Direct script usage
+python3 setup-env.py --auto
+
+# Manual setup (not recommended)
+cp .env.example .env && nano .env
+```
+
+**Safety Note:** The setup will not overwrite existing `.env` files. If you have an existing `.env`, back it up first:
+`cp .env .env.backup && rm .env`
 
 ### 4. Start the Stack
 
+#### One-Command Setup
+
 ```bash
-docker compose up -d                    # Start all services
-docker compose ps                       # Check status
-docker compose logs                     # Check logs, use -f to follow
+make init                               # Complete setup: env + pull + start
+```
+
+#### Step-by-Step
+
+```bash
+make pull                               # Pull latest images
+make up                                 # Start all services
+make status                             # Check status
+make logs                               # Check logs
 ```
 
 **Note:** n8n will fail to start initially due to volume permission issues. This is expected - continue to step 5.
@@ -64,10 +95,8 @@ docker compose logs                     # Check logs, use -f to follow
 
 ```bash
 # Stop the stack first
-docker compose down
-```
+make down
 
-```bash
 # Set proper permissions for n8n community nodes volume
 docker run --rm -v n8n_pgvector16_n8n_nodes:/nodes alpine chown -R 1000:1000 /nodes
 
@@ -75,7 +104,7 @@ docker run --rm -v n8n_pgvector16_n8n_nodes:/nodes alpine chown -R 1000:1000 /no
 docker run --rm -v "$(pwd)/n8n-nodes":/source -v n8n_pgvector16_n8n_nodes:/target alpine sh -c "cp -r /source/* /target/ && chown -R 1000:1000 /target"
 
 # Restart the stack
-docker compose up -d
+make up
 ```
 
 **Why this step?** Docker creates the volume with root ownership. n8n runs as user 1000 and needs write permissions to
@@ -145,6 +174,15 @@ local network. For more advanced configurations, please refer to the
 Point your local DNS records (or update your host files) to route n8n.lan to your host's local IP address to get a fully
 functional https served n8n instance on your local network
 
+## Quick Reference
+
+### Service URLs
+
+- **n8n**: <http://localhost:5678>
+- **Langfuse**: <http://localhost:9119>
+- **pgAdmin**: <http://localhost:5050> (<admin@example.com> / password in .env)
+- **MinIO Console**: <http://localhost:9001>
+
 ## Production Deployment
 
 For secure internet-accessible deployment with Cloudflare Tunnel, see the comprehensive [DEPLOYMENT.md](DEPLOYMENT.md)
@@ -202,22 +240,6 @@ Langfuse v3 uses a distributed database architecture for optimal performance:
 observability data is stored in ClickHouse for better performance at scale.
 
 ## Management
-
-### Common Commands
-
-```bash
-docker compose up -d                    # Start stack
-docker compose stop                     # Stop stack
-docker compose logs -f n8n              # View n8n logs
-docker compose logs -f postgres         # View postgres logs
-docker compose restart n8n              # Restart specific service
-docker compose down -v                  # Complete teardown (removes volumes)
-
-# Database management
-docker compose exec postgres pg_dump -U n8n_user -d n8n > backup.sql           # Backup
-docker compose exec -T postgres psql -U n8n_user -d n8n < backup.sql           # Restore
-docker compose exec postgres psql -U n8n_user -d n8n                           # Access database
-```
 
 ## AI/ML Capabilities
 
