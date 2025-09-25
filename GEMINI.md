@@ -44,14 +44,22 @@ To build and run this project, you will need to have Docker and Docker Compose i
 
 2. **Set up the environment:**
 
-   Copy the example environment file and edit it with your credentials:
+   **Recommended:** Use the automated setup script:
+
+   ```bash
+   make setup
+   # OR
+   python3 setup-env.py --auto
+   ```
+
+   **Alternative:** Manual setup:
 
    ```bash
    cp .env.example .env
    nano .env
    ```
 
-   **IMPORTANT:** Change the default passwords and configure your domain in the `.env` file.
+   **IMPORTANT:** The automated script generates secure credentials and avoids common configuration issues.
 
 3. **Start the stack:**
 
@@ -69,6 +77,55 @@ To build and run this project, you will need to have Docker and Docker Compose i
 
    - **Local**: `http://n8n.lan:5678` (requires DNS setup)
    - **Production**: `https://n8n.leoric.org` (with Cloudflare Tunnel)
+
+## ⚠️ CRITICAL: Environment Configuration Maintenance
+
+For developers adding/modifying services: **Always update .env.example with directive comments**
+
+### Self-Documenting Environment Variables
+
+This project uses a directive-based system where .env.example serves as both:
+
+- **Template for automated generation** (via setup-env.py)
+- **Manual reference** for maintenance
+
+Example format:
+
+```env
+# GENERATE: strong_password(32) | Manual: openssl rand -base64 32
+SERVICE_PASSWORD=placeholder_value
+```
+
+### Available Directive Types
+
+**Password/Key Generation:**
+
+- `strong_password(length)` - Mixed-character secure password
+- `hex_key(length)` - Hexadecimal encryption key
+- `base64_password(length)` - Base64-encoded password
+- `s3_access_key(length)` - Alphanumeric access key
+
+**System Detection:**
+
+- `auto_detect_timezone` - Automatically detects system timezone
+- `manual` - Requires manual setup (API keys, etc.)
+
+**Context-Aware Templates:**
+
+- `template("protocol")` - "http" for localhost, "https" for custom domains
+- `template("n8n_host")` - Uses actual hostname (localhost or custom domain)
+- `template("n8n_webhook_url")` - Full n8n webhook URL with proper protocol and port
+- `template("langfuse_url")` - Full Langfuse URL with proper protocol and port
+
+### Maintenance Rules
+
+1. **Every environment variable MUST have a directive comment**
+2. **Test changes**: Run `python3 setup-env.py --dry-run --auto`
+3. **Use clear placeholders** that indicate required changes
+4. **Provide copy-paste commands** in manual instructions
+5. **Never commit real credentials**
+
+This ensures the automated setup stays synchronized with stack evolution.
 
 ## Development Conventions
 

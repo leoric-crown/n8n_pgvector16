@@ -66,6 +66,51 @@ Langfuse v3 uses a distributed storage architecture:
 - `.env`: Environment variables for database credentials (copy from `.env.example`)
 - `prometheus.yml`: Prometheus configuration for optional monitoring setup
 
+## ⚠️ CRITICAL: .env.example Maintenance
+
+**When adding/removing services or environment variables, you MUST update .env.example with directive comments:**
+
+### Adding New Environment Variables
+
+Use the dual comment system for auto-generation + manual instructions:
+
+```env
+# GENERATE: strong_password(32) | Manual: openssl rand -base64 32
+NEW_SERVICE_PASSWORD=placeholder_value
+
+# GENERATE: hex_key(32) | Manual: openssl rand -hex 32
+NEW_SERVICE_KEY=placeholder_key
+
+# GENERATE: template("n8n_host") | Manual: Set to your domain
+NEW_SERVICE_HOST=service.lan
+```
+
+### Directive Types Available
+
+- `strong_password(length)` - Secure mixed-character password
+- `hex_key(length)` - Hexadecimal key (for encryption)
+- `base64_password(length)` - Base64-encoded password
+- `s3_access_key(length)` - Alphanumeric access key
+- `auto_detect_timezone` - System timezone detection
+- `manual` - Requires manual setup (like API keys)
+
+### Template Directives (Context-Aware)
+
+- `template("protocol")` - Sets "http" for localhost, "https" for custom domains
+- `template("n8n_host")` - Uses actual hostname (localhost or custom domain)
+- `template("n8n_webhook_url")` - Full n8n webhook URL with proper protocol and port
+- `template("langfuse_url")` - Full Langfuse URL with proper protocol and port
+
+### Rules for .env.example
+
+1. **Every new env var MUST have a directive comment** above it
+2. **Manual instructions MUST be actionable** (copy-paste commands)
+3. **Use placeholder values** that clearly indicate what needs to be changed
+4. **Test the script** after changes: `python3 setup-env.py --dry-run --auto`
+5. **Never commit real credentials** - only placeholders
+
+This system ensures the setup script stays current as the stack evolves.
+
 ## Common Commands
 
 ### Start the stack
@@ -104,6 +149,16 @@ docker compose logs -f postgres
 - MinIO requires `S3_REGION` and `S3_FORCE_PATH_STYLE` environment variables
 
 ## Environment Setup
+
+### Automated Setup (Recommended)
+
+Use the automated setup script for secure, consistent configuration:
+
+```bash
+make setup    # Generate .env with secure credentials
+# OR
+python3 setup-env.py --auto
+```
 
 ### Core Stack Setup
 
