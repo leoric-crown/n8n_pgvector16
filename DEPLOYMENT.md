@@ -128,13 +128,13 @@ Update the following variables in `.env`:
 N8N_HOST=n8n.<your-domain>
 
 # Database credentials (generate strong passwords)
-POSTGRES_PASSWORD=your_super_secret_postgres_password
+POSTGRES_PASSWORD=your_secret_postgres_password
 POSTGRES_NON_ROOT_PASSWORD=your_super_secret_postgres_password
 
 # Timezone
 TIMEZONE=America/Mexico_City
 
-# n8n API key (generate after deployment)
+# n8n API key (generate after deployment, update .env, and docker compose down+up n8n)
 N8N_API_KEY=your_n8n_api_key_here
 
 # MCP auth token (generate with: openssl rand -hex 32)
@@ -147,18 +147,13 @@ The docker-compose.yml file is already configured for production with:
 
 ### 1. n8n Configuration
 
-The main docker-compose.yml is already configured for production with:
-
 - HTTPS protocol support
-- Comprehensive metrics enabled
 - Production-ready environment variables
 - n8n-mcp integration for AI-assisted workflow development
 
 ### 2. Cloudflare Tunnel
 
 Cloudflare Tunnel runs as a system service (installed via CLI), not as a Docker container.
-
-**Note**: Metrics are already enabled in the production configuration with comprehensive tracking.
 
 ## Deployment Steps
 
@@ -218,7 +213,7 @@ docker compose ps
 docker compose exec postgres pg_isready -U n8n_user -d n8n
 
 # Check n8n logs for errors
-docker compose logs n8n | tail -50
+docker compose logs n8n | grep -i error
 ```
 
 ### 2. Functionality Tests
@@ -226,7 +221,7 @@ docker compose logs n8n | tail -50
 - [ ] n8n web interface accessible at \<<https://n8n>.<your-domain>>
 - [ ] Workflow creation and execution
 - [ ] Webhook endpoints working
-- [ ] Database persistence (restart container test)
+- [ ] Database persistence (docker compose down+up container test)
 - [ ] Cloudflare Tunnel connectivity
 
 ### 3. Security Verification
@@ -422,6 +417,4 @@ docker compose exec postgres \
 
 ### If You Want to Scale Later
 
-- For heavy personal use, consider adding more CPU/RAM to your server
-- PostgreSQL connection pooling if you create many workflows
-- Multiple n8n instances if you separate dev/prod environments
+- Free tier cloudflared tunnel may not be enough for power users once fully set up and running workflows daily

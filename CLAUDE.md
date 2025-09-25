@@ -151,7 +151,7 @@ Run manually: `pre-commit run --all-files`
 
 ## Homelab LLM Integration Documentation
 
-For complete homelab setup with local LLM capabilities, see the comprehensive documentation:
+For complete homelab setup with local LLM capabilities (using ollama), see the comprehensive documentation:
 
 - **[OLLAMA_INTEGRATION.md](./ollama/OLLAMA_INTEGRATION.md)** - Native Ollama setup and integration guide
 - **[RTX_4090_OPTIMIZATION.md](./ollama/RTX_4090_OPTIMIZATION.md)** - NVIDIA RTX 4090 optimization guide

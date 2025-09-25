@@ -56,6 +56,8 @@ services:
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
       - N8N_BLOCK_ENV_ACCESS_IN_NODE=true
       - WEBHOOK_URL=https://${N8N_HOST}
+      # Uncomment the following if you'll be using Prometheus and Grafana for monitoring
+      # Also uncomment the actual services below
       # - N8N_METRICS=true
       # - N8N_METRICS_INCLUDE_DEFAULT_METRICS=true
       # - N8N_METRICS_INCLUDE_CACHE_METRICS=true
@@ -70,6 +72,7 @@ services:
       # - N8N_METRICS_INCLUDE_QUEUE_METRICS=true
       # - N8N_METRICS_QUEUE_METRICS_INTERVAL=20
     dns:
+      # This is probably not needed unless you're using a custom DNS server
       - ${DNS_SERVER}
     ports:
       - "${N8N_PORT}:5678"
@@ -252,7 +255,7 @@ services:
 
   # End Langfuse
 
-  # pgAdmin - Web-based PostgreSQL administration tool
+  # Optional: pgAdmin - Web-based PostgreSQL administration tool
   pgadmin:
     container_name: n8n-pgadmin
     image: dpage/pgadmin4:latest
@@ -270,7 +273,7 @@ services:
       postgres:
         condition: service_healthy
 
-  # PostgreSQL MCP Server - Database query and management via MCP protocol
+  # Optional: PostgreSQL MCP Server - Database query and management via MCP protocol
   postgres-mcp:
     container_name: postgres-mcp
     image: crystaldba/postgres-mcp:latest
@@ -284,7 +287,7 @@ services:
       postgres:
         condition: service_healthy
 
-  # Tableau MCP Server - AI-powered tools for Tableau integration
+  # Optional: Tableau MCP Server - AI-powered tools for Tableau integration
   tableau-mcp:
     container_name: tableau-mcp
     build:
@@ -309,6 +312,8 @@ services:
     ports:
       - "${TABLEAU_MCP_PORT}:3927"
 
+  # Optional: Prometheus and Grafana for monitoring
+  # (not tested in a long time, contributions welcome)
   # prometheus:
   #   image: prom/prometheus:latest
   #   restart: unless-stopped

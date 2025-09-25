@@ -42,7 +42,7 @@ docker cp n8n-app:/tmp/credentials.json ./credentials-backup.json
 openssl rand -hex 32  # Copy output to N8N_ENCRYPTION_KEY in .env
 
 # Restart with new key
-docker compose restart n8n
+docker compose down n8n ; docker compose up -d
 
 # Import credentials back
 docker cp ./credentials-backup.json n8n-app:/tmp/credentials.json
@@ -66,7 +66,6 @@ docker exec n8n-app rm /tmp/credentials.json
 
 ### Additional Security Recommendations
 
-- [ ] Regenerate n8n API key (current one may be exposed in logs)
 - [ ] Set `N8N_USER_MANAGEMENT_JWT_SECRET` for session security
 - [ ] Consider `N8N_USER_MANAGEMENT_DISABLED=true` after creating admin user
 - [ ] Enable `N8N_LOG_LEVEL=warn` to reduce sensitive data in logs
@@ -78,8 +77,3 @@ docker exec n8n-app rm /tmp/credentials.json
 - Database port not exposed (internal Docker network only)
 - n8n behind Caddy + Cloudflare Tunnel (2 proxy hops)
 - Custom Docker network isolation (optional improvement)
-
-### Monitoring
-
-- Optional: Enable Prometheus metrics (currently commented out)
-- Optional: Set up Grafana dashboard (currently commented out)

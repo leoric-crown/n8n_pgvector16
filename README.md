@@ -7,7 +7,7 @@ pgvector extension for AI/ML workflows and optional n8n-mcp integration for AI-a
 
 ## Features
 
-- **n8n**: Latest workflow automation platform
+- **n8n**: AI-native workflow automation platform
 - **PostgreSQL with pgvector**: Vector extension for AI/ML embeddings and similarity search
 - **n8n-mcp**: AI assistant for workflow development (optional)
 - **Production-ready**: HTTPS support, metrics enabled, Cloudflare Tunnel integration
@@ -44,7 +44,7 @@ pre-commit install
 ### 3. Environment Setup
 
 ```bash
-cp .env.example .env                     # Copy example environment file
+cp .env.example .env                    # Copy example environment file
 nano .env                               # Edit with your credentials
 ```
 
@@ -55,6 +55,7 @@ nano .env                               # Edit with your credentials
 ```bash
 docker compose up -d                    # Start all services
 docker compose ps                       # Check status
+docker compose logs                     # Check logs, use -f to follow
 ```
 
 **Note:** n8n will fail to start initially due to volume permission issues. This is expected - continue to step 5.
@@ -112,8 +113,37 @@ Without this bucket, Langfuse will fail with S3 credential errors.
 
 ### 7. Access n8n
 
-- **Local**: <http://n8n.lan:5678> (requires DNS setup)
-- **Production**: <https://n8n.leoric.org> (with Cloudflare Tunnel)
+- **Local**: <http://localhost:5678>
+- **Production**: <https://your.domain.com> (with Cloudflare Tunnel + your own domain)
+
+## Local Network Access with Caddy (Optional)
+
+For a more convenient local development experience, you can use [Caddy](https://caddyserver.com/) as a reverse proxy to
+provide HTTPS for your local services (e.g., `https://n8n.lan`). This is optional and not required for production
+deployments using Cloudflare Tunnels.
+
+### Caddyfile Configuration for Long-Running Workflows
+
+Add the following to your Caddyfile, then run `caddy run`. This includes increased timeouts to prevent errors with slow
+LLM workflows.
+
+```caddy
+n8n.lan {
+    reverse_proxy localhost:5678 {
+        transport http {
+            dial_timeout 600s
+            response_header_timeout 600s
+        }
+    }
+}
+```
+
+This configuration automatically provides a trusted HTTPS certificate (provided by LetsEncrypt) for `n8n.lan` on your
+local network. For more advanced configurations, please refer to the
+[official Caddy documentation](https://caddyserver.com/docs/).
+
+Point your local DNS records (or update your host files) to route n8n.lan to your host's local IP address to get a fully
+functional https served n8n instance on your local network
 
 ## Production Deployment
 
@@ -135,14 +165,14 @@ Key variables in `.env`:
 
 ```env
 # Database
-POSTGRES_PASSWORD=your_super_secret_postgres_password
+POSTGRES_PASSWORD=your_secret_postgres_password
 POSTGRES_NON_ROOT_PASSWORD=your_super_secret_postgres_password
 
 # n8n
-N8N_HOST=n8n.lan                    # Change for production
-TIMEZONE=America/Mexico_City
+N8N_HOST=0.0.0.0
+TIMEZONE=America/Mexico_City    # Set your timezone (https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)
 
-# n8n-mcp (AI assistant)
+# n8n-mcp (AI assistant https://github.com/czlonkowski/n8n-mcp)
 N8N_API_KEY=your_n8n_api_key_here
 MCP_AUTH_TOKEN=your_secure_auth_token_here
 ```
