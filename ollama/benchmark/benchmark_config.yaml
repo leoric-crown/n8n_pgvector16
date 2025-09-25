@@ -1,0 +1,47 @@
+# Ollama Benchmark Configuration File
+# This file can be used with --config flag to set default parameters
+
+# Connection settings
+host: localhost
+port: 11434
+
+# Model selection
+# Uncomment and modify to select specific models
+# models:
+#   - phi4-mini:3.8b
+#   - gemma3:4b
+#   - deepseek-r1:8b
+#   - qwen3:8b
+#   - gpt-oss:latest
+
+# Or use pattern matching (regex)
+# select_pattern: "deepseek|gemma"
+
+# Benchmark parameters
+num_predict: 1024 # Number of tokens to generate
+num_ctx: 4096 # Context window size
+temperature: 0.2 # Generation temperature
+# seed: 42             # Uncomment for deterministic results
+
+# Performance options
+repeat_runs: 1 # Number of runs per model for statistics
+cold_run: false # Force cold runs (unload between tests)
+mem_split: true # Capture RAM/VRAM split from ollama ps
+keep_alive: "2s" # Model keep-alive duration
+
+# Output options
+# label: "baseline"    # Label for this benchmark run
+
+# Export formats (uncomment to enable)
+# csv_output: results.csv
+# json_output: results.json
+# parquet_output: results.parquet
+
+# Advanced options
+debug: false # Enable debug output
+ollama_bin: ollama # Path to ollama binary
+
+# Prompt configuration
+# You can specify prompt directly or via file
+# prompt: "Your custom prompt here"
+# prompt_file: /path/to/prompt.md

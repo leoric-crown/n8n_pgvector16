@@ -1,0 +1,2 @@
+model,timestamp,preloaded,tokens,load_s,eval_s,total_s,prompt_eval_s,tokens_per_second,context_length,label,error,disk_gb,ram_percent,vram_percent,memory_gb,processor
+gpt-oss:latest,2025-09-25T00:56:11.716218,False,256,7.89,1.64,9.916,0.385,156.1,90112,,,12.833786871284246,0,100,23.0,100% GPU
