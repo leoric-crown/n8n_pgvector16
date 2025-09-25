@@ -39,9 +39,7 @@ Environment="OLLAMA_MAX_LOADED_MODELS=2"
 Environment="OLLAMA_FLASH_ATTENTION=1"
 Environment="OLLAMA_KV_CACHE_TYPE=q8_0"
 Environment="OLLAMA_KEEP_ALIVE=30m"
-Environment="OLLAMA_GPU_OVERHEAD=2147483648"  # 2GB VRAM reserved
-# Optional: limit to GPU 0
-Environment="CUDA_VISIBLE_DEVICES=0"
+Environment="OLLAMA_GPU_OVERHEAD=134217728"  # 128MB VRAM reserved
 EOF
 
 changed=0

@@ -18,7 +18,7 @@ fi
 echo "[+] Setting Ollama environment variables for this session..."
 
 launchctl setenv OLLAMA_NUM_PARALLEL 4
-launchctl setenv OLLAMA_MAX_LOADED_MODELS 3
+launchctl setenv OLLAMA_MAX_LOADED_MODELS 2
 launchctl setenv OLLAMA_FLASH_ATTENTION 1
 launchctl setenv OLLAMA_KV_CACHE_TYPE q8_0
 launchctl setenv OLLAMA_KEEP_ALIVE 30m
@@ -43,10 +43,21 @@ cat <<'MSG'
 
 [OK] macOS tuning applied to current session.
 
-To persist env across reboots for the Homebrew service: add EnvironmentVariables to the
-Homebrew LaunchAgent plist and reload, for example:
+To persist env across reboots, edit the Homebrew LaunchAgent plist:
   ~/Library/LaunchAgents/homebrew.mxcl.ollama.plist
-Then: launchctl unload ~/Library/LaunchAgents/homebrew.mxcl.ollama.plist && \
-      launchctl load -w ~/Library/LaunchAgents/homebrew.mxcl.ollama.plist
+
+Add these variables to the existing EnvironmentVariables dict:
+  <key>OLLAMA_NUM_PARALLEL</key>
+  <string>4</string>
+  <key>OLLAMA_MAX_LOADED_MODELS</key>
+  <string>2</string>
+  <key>OLLAMA_KEEP_ALIVE</key>
+  <string>30m</string>
+
+Note: OLLAMA_FLASH_ATTENTION and OLLAMA_KV_CACHE_TYPE might already be set as defaults.
+
+After editing, reload the service:
+  launchctl unload ~/Library/LaunchAgents/homebrew.mxcl.ollama.plist && \
+  launchctl load -w ~/Library/LaunchAgents/homebrew.mxcl.ollama.plist
 
 MSG
