@@ -1,3 +1,7 @@
+.bmad-core
+.cursor
+.claude
+
 .DS_Store
 .idea/
 .env
