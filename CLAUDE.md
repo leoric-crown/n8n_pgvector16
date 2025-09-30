@@ -14,6 +14,7 @@ containerized stack includes:
 - **Redis**: Cache and queue for Langfuse background processing
 - **ClickHouse**: OLAP database for traces, observations, and scores
 - **Optional monitoring**: Prometheus and Grafana (currently commented out)
+- **Note**: Tableau MCP server has been extracted to a standalone stack
 
 ### External Homelab Dependencies
 
