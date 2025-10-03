@@ -1,0 +1,2 @@
+FROM gpt-oss:latest
+PARAMETER num_ctx 100352

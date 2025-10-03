@@ -14,6 +14,22 @@ pgvector extension for AI/ML workflows and optional n8n-mcp integration for AI-a
 - **Monitoring**: Optional Prometheus & Grafana setup (commented out)
 - **Secure**: Non-root database user, configurable encryption
 
+## Performance & Benchmarks
+
+This repository includes comprehensive benchmark results from testing various LLM models on consumer hardware (RTX 4090
+24GB VRAM).
+
+**Key Findings:**
+
+- **GPT-OSS**: 21B parameter model handling 100K context at 150+ tokens/sec on 24GB VRAM
+- **Context Window Scaling**: Detailed analysis of performance from 8K to 100K tokens across 6 models
+- **Memory Efficiency**: Comparison of VRAM usage and RAM spillover thresholds
+- **Real-World Recommendations**: Model selection guidance for different use cases
+
+📊 **[View detailed benchmark results →](docs/BENCHMARKS.md)**
+
+🔗 **[External resources & references →](docs/RESOURCES.md)**
+
 ## Quick Start
 
 ### 1. Clone and Setup

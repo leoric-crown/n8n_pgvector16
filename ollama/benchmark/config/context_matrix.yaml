@@ -1,0 +1,89 @@
+# Context Window Size Matrix Configuration
+# Benchmark models across different context window sizes
+# From 8K tokens up to 102K tokens (100 * 1024)
+
+matrix:
+  # Context window sizes to test (in tokens)
+  context_sizes:
+    - 8192 # 8K
+    - 16384 # 16K
+    - 32768 # 32K
+    - 65536 # 64K
+    - 102400 # 100K (100 * 1024)
+
+  # Models to test (can use regex pattern matching)
+  models:
+    - phi4-mini:3.8b
+    - gemma3:4b
+    - deepseek-r1:8b
+    - qwen3:8b
+    - qwen3-coder:30b
+    - gpt-oss:latest
+
+  # Alternative: Use pattern matching for model selection
+  # Uncomment to select models by pattern instead of explicit list
+  # model_pattern: "deepseek|gemma|phi4|qwen3"
+
+  # Or test all available models
+  # model_pattern: "all"
+
+# Benchmark parameters
+benchmark:
+  num_predict: 1024 # Tokens to generate per test
+  temperature: 0.2 # Generation temperature
+  repeat_runs: 1 # Repetitions per context size
+  keep_alive: "2s" # Model keep-alive duration
+  mem_split: true # Capture RAM/VRAM split
+
+# Connection settings
+connection:
+  host: localhost
+  port: 11434
+  ollama_bin: ollama
+
+# Output settings
+output:
+  # Label template (can use {context} placeholder)
+  label_template: "ctx-{context}"
+
+  # Export format (csv, json, parquet, or multiple)
+  formats:
+    - csv
+    - json
+
+  # Output directory - results will be saved in timestamped subdirectories
+  # E.g., ./results/20250101-120000/benchmark-8k.csv
+  output_dir: "./results" # Relative to benchmark/ directory
+
+  # Output filename template (can use {context}, {timestamp} if needed)
+  # Note: Timestamp is automatically added as a directory name
+  filename_template: "benchmark-{context}k"
+
+# Advanced options
+advanced:
+  debug: false
+
+  # Stop models between context size changes for clean benchmarks
+  stop_between_contexts: true
+
+  # Stop models between individual model tests
+  stop_between_models: true
+
+  # Cold run (unload all models before starting)
+  cold_start: false
+
+# Prompt configuration
+# Use default prompt if not specified
+prompt_file: null # Optional: path to custom prompt file
+prompt: null # Optional: inline prompt text
+
+# Example usage with the benchmark tool:
+#
+# Parse this matrix and run multiple benchmarks:
+# for ctx in context_sizes:
+#   python benchmark_models.py \
+#     --num-ctx {ctx} \
+#     --models {models} \
+#     --num-predict {num_predict} \
+#     --csv results/benchmark-{ctx}k.csv \
+#     --label ctx-{ctx}

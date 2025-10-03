@@ -1,3 +1,7 @@
+americas-ai/
+
+__pycache__/
+
 .bmad-core
 .cursor
 .claude
@@ -10,7 +14,12 @@
 credentials-backup.json
 
 *TRANSCRIPT*.md
+*benchmark*.csv
 *benchmark*.json
+
+# Benchmark results (but keep directory structure)
+ollama/benchmark/results/*
+!ollama/benchmark/results/.gitkeep
 
 n8n-nodes/
 

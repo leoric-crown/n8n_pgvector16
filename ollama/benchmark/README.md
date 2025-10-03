@@ -1,219 +1,410 @@
-# Ollama Benchmark Tool
+# Ollama Benchmark Tools
 
-A comprehensive Python benchmarking utility for Ollama models with rich terminal output, memory monitoring, and flexible
-data export capabilities.
+Comprehensive benchmarking utilities for Ollama models with support for:
 
-## Features
+- 🚀 Live streaming display with rich terminal UI
+- 📊 Memory usage monitoring (RAM/VRAM split)
+- 🔄 Multiple context window sizes testing
+- 📈 Statistical analysis across runs
+- 💾 Export to CSV, JSON, and Parquet formats
 
-- 🎨 **Rich Colored Output**: Beautiful terminal tables with color-coded performance metrics
-- 📊 **Memory Monitoring**: Real-time RAM/VRAM split capture via `ollama ps`
-- 💾 **Multiple Export Formats**: CSV, JSON, and Parquet for data analysis
-- 🌐 **Remote Support**: Works with remote Ollama instances
-- 📈 **Statistical Analysis**: Mean, std dev, and percentiles for multiple runs
-- ⚡ **Progress Tracking**: Live progress bars during benchmarks
-- 🔧 **Flexible Configuration**: CLI args and YAML config file support
+## Published Benchmark Results
 
-## Installation
+This repository includes comprehensive benchmark results comparing LLM model performance on consumer hardware.
 
-```bash
-cd ollama/benchmark
-pip install -r requirements.txt
-```
+📊 **[View published benchmark analysis →](../../docs/BENCHMARKS.md)**
+
+Key findings include context window scaling analysis (8K→100K tokens), memory efficiency comparisons, and real-world use
+case recommendations for models running on RTX 4090 (24GB VRAM).
 
 ## Quick Start
 
+### Installation
+
+Using `uv` (recommended - fast and reliable):
+
 ```bash
-# Benchmark default models
-python benchmark_models.py
+cd ollama/benchmark
 
-# Benchmark all available models
-python benchmark_models.py --select "all"
-
-# Benchmark specific models with custom settings
-python benchmark_models.py --models "phi4-mini:3.8b,gemma3:4b" --num-ctx 8192
-
-# Pattern-based model selection with memory monitoring
-python benchmark_models.py --select "deepseek|gemma" --mem-split
-
-# Export results to multiple formats
-python benchmark_models.py --csv results.csv --json results.json --parquet results.parquet
+# Dependencies are managed automatically with uv
+uv run --with-requirements requirements.txt benchmark_models.py --help
 ```
 
-## Usage Examples
-
-### Basic Benchmarking
+Or create a virtual environment:
 
 ```bash
-# Run with default settings
-python benchmark_models.py
-
-# Specify models directly
-python benchmark_models.py phi4-mini:3.8b gemma3:4b deepseek-r1:8b
-
-# Use pattern matching
-python benchmark_models.py --select "deepseek"
+cd ollama/benchmark
+uv venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+uv pip install -r requirements.txt
 ```
 
-### Advanced Usage
+### Basic Usage
+
+#### Single Model Benchmark
 
 ```bash
-# Full benchmark with all features
-python benchmark_models.py \
-  --select "all" \
-  --num-ctx 128 \
-  --num-predict 256 \
-  --mem-split \
-  --repeat-runs 3 \
-  --csv results.csv \
-  --label "baseline"
+# Using uv (recommended)
+uv run --with-requirements requirements.txt benchmark_models.py phi4-mini:3.8b
 
-# Remote Ollama instance
-python benchmark_models.py \
-  --host remote-server.com \
+# Or with activated venv
+./benchmark_models.py phi4-mini:3.8b
+```
+
+#### Multiple Models
+
+```bash
+# Pattern matching
+uv run --with-requirements requirements.txt benchmark_models.py -s "phi4|gemma3"
+
+# Explicit list
+uv run --with-requirements requirements.txt benchmark_models.py phi4-mini:3.8b gemma3:4b qwen3:8b
+```
+
+#### Context Window Matrix Test
+
+```bash
+# Run across multiple context sizes (8K, 16K, 32K, 64K, 100K)
+uv run --with-requirements requirements.txt run_matrix.py
+
+# Preview commands without running
+uv run --with-requirements requirements.txt run_matrix.py --dry-run
+
+# Override specific parameters
+uv run --with-requirements requirements.txt run_matrix.py --num-predict 2048 --temperature 0.5
+```
+
+## Configuration
+
+All tools support a **consistent configuration hierarchy**:
+
+```text
+CLI Flags > Environment Variables > YAML Config > Hardcoded Defaults
+```
+
+### Configuration Files
+
+Stored in `config/` directory:
+
+- `benchmark_config.yaml` - Default config for benchmark_models.py
+- `context_matrix.yaml` - Matrix test configuration
+
+See [config/README.md](config/README.md) for detailed configuration guide.
+
+### Environment Variables
+
+```bash
+export OLLAMA_HOST=localhost
+export OLLAMA_PORT=11434
+export OLLAMA_NUM_CTX=16384
+export OLLAMA_NUM_PREDICT=1024
+export OLLAMA_TEMPERATURE=0.2
+
+uv run --with-requirements requirements.txt benchmark_models.py -s "gpt-oss"
+```
+
+### Example Configurations
+
+```bash
+# Quick test with custom context
+uv run --with-requirements requirements.txt benchmark_models.py \
+  --num-ctx 8192 \
+  --num-predict 512 \
+  -s "phi4" \
+  --csv results/phi4_8k.csv
+
+# Statistical analysis with multiple runs
+uv run --with-requirements requirements.txt benchmark_models.py \
+  --repeat-runs 5 \
+  --temperature 0.2 \
+  phi4-mini:3.8b gemma3:4b
+
+# Matrix test with overrides
+uv run --with-requirements requirements.txt run_matrix.py \
+  --num-predict 2048 \
+  --repeat-runs 3
+```
+
+## Output
+
+Results are automatically saved to **timestamped subdirectories** in `results/`:
+
+```text
+results/
+├── 20250101-120000/
+│   ├── benchmark-8k.csv
+│   ├── benchmark-8k.json
+│   ├── benchmark-16k.csv
+│   └── benchmark-16k.json
+└── 20250101-130000/
+    └── single-model.csv
+```
+
+This keeps results from different benchmark runs cleanly organized.
+
+**Supported formats:**
+
+- CSV: Easy import to Excel/Pandas
+- JSON: Structured data with all metrics
+- Parquet: Efficient storage for large datasets
+
+### Example Output
+
+```text
+┌──────────────────┬─────────┬───────────┬─────────┬──────────┬─────────┬──────────┬──────────┬───────────┬──────────┐
+│ Model            │ Disk GB │ Preloaded │ Context │ RAM/VRAM │ MEM GB  │ Load (s) │ Eval (s) │ Tok/s     │ Total(s) │
+├──────────────────┼─────────┼───────────┼─────────┼──────────┼─────────┼──────────┼──────────┼───────────┼──────────┤
+│ phi4-mini:3.8b   │ 2.3     │ NO        │ 8192    │ 0%/100%  │ 4.2     │ 0.845    │ 2.134    │ 120.1     │ 3.021    │
+│ gemma3:4b        │ 2.5     │ NO        │ 8192    │ 0%/100%  │ 4.8     │ 0.923    │ 1.891    │ 135.4     │ 2.856    │
+│ deepseek-r1:8b   │ 4.7     │ NO        │ 8192    │ 3%/97%   │ 6.1     │ 1.234    │ 3.456    │ 74.1      │ 4.721    │
+└──────────────────┴─────────┴───────────┴─────────┴──────────┴─────────┴──────────┴──────────┴───────────┴──────────┘
+```
+
+## Features
+
+### Live Streaming Display
+
+Real-time display of model responses during generation with:
+
+- Token-by-token streaming
+- Memory usage updates
+- Progress tracking
+- Auto-scrolling text display
+
+### Memory Monitoring
+
+Captures RAM/VRAM split from `ollama ps`:
+
+- GPU percentage
+- CPU percentage
+- Total memory size
+- Processor type
+
+### Statistical Analysis
+
+Multiple runs provide statistical insights:
+
+- Mean tokens/second
+- Standard deviation
+- Min/Max values
+- Performance variability
+
+### Export Formats
+
+Choose your preferred format:
+
+```bash
+uv run --with-requirements requirements.txt benchmark_models.py \
+  --csv results/benchmark.csv \
+  --json results/benchmark.json \
+  --parquet results/benchmark.parquet \
+  -s "all"
+```
+
+## Advanced Usage
+
+### Custom Prompt
+
+```bash
+# Inline prompt
+uv run --with-requirements requirements.txt benchmark_models.py \
+  -p "Explain quantum computing in 100 words" \
+  phi4-mini:3.8b
+
+# From file
+uv run --with-requirements requirements.txt benchmark_models.py \
+  --prompt-file my_prompt.txt \
+  phi4-mini:3.8b
+```
+
+### Remote Ollama Server
+
+```bash
+uv run --with-requirements requirements.txt benchmark_models.py \
+  --host remote-server \
   --port 11434 \
-  --select "all"
-
-# Cold runs (unload models between tests)
-python benchmark_models.py --cold --select "deepseek"
+  -s "all"
 ```
 
-### Configuration File
+### Matrix Testing
 
-Create a `benchmark_config.yaml` file:
-
-```yaml
-host: localhost
-port: 11434
-num_predict: 256
-num_ctx: 4096
-temperature: 0.2
-mem_split: true
-models:
-  - phi4-mini:3.8b
-  - gemma3:4b
-  - deepseek-r1:8b
-csv_output: results.csv
-```
-
-Then run with:
+The matrix runner executes benchmarks across multiple context window sizes:
 
 ```bash
-python benchmark_models.py --config benchmark_config.yaml
+# Default matrix (8K, 16K, 32K, 64K, 100K)
+uv run --with-requirements requirements.txt run_matrix.py
+
+# With parameter overrides
+uv run --with-requirements requirements.txt run_matrix.py \
+  --num-predict 2048 \
+  --temperature 0.3 \
+  --repeat-runs 5
+
+# Custom config
+uv run --with-requirements requirements.txt run_matrix.py \
+  --config config/my_matrix.yaml
 ```
 
-## Output Format
+## Convenience Aliases
 
-The tool displays a rich colored table with:
+Add to your `~/.bashrc` or `~/.zshrc`:
 
-- **Model**: Model name and version
-- **Disk GB**: Model size on disk
-- **Preloaded**: Whether model was already in memory
-- **Context**: Context window size used
-- **RAM/VRAM**: Memory split percentage (optional)
-- **Memory GB**: Total memory usage (optional)
-- **Load (s)**: Model loading time
-- **Eval (s)**: Token evaluation time
-- **Tok/s**: Tokens per second (color-coded)
-- **Total (s)**: Total execution time
+```bash
+alias obench='cd /path/to/ollama/benchmark && uv run --with-requirements requirements.txt benchmark_models.py'
+alias omatrix='cd /path/to/ollama/benchmark && uv run --with-requirements requirements.txt run_matrix.py'
 
-### Color Coding
-
-- **Tok/s Performance**:
-  - 🟢 Bright Green: >100 tok/s (excellent)
-  - 🟢 Green: 50-100 tok/s (good)
-  - 🟡 Yellow: 25-50 tok/s (moderate)
-  - 🔴 Red: \<25 tok/s (slow)
-
-## Command-Line Options
-
-### Model Selection
-
-- `models`: Positional arguments for model names
-- `-m, --models LIST`: Comma-separated model list
-- `-s, --select REGEX`: Pattern matching for model selection
-
-### Benchmark Parameters
-
-- `-p, --prompt TEXT`: Custom prompt text
-- `--prompt-file FILE`: Load prompt from file
-- `--num-predict N`: Tokens to generate (default: 256)
-- `--num-ctx N`: Context window size (default: 4096)
-- `--temperature F`: Generation temperature (default: 0.2)
-- `--seed N`: Random seed for deterministic results
-- `--repeat-runs N`: Number of runs per model (default: 1)
-
-### Connection Settings
-
-- `--host HOST`: Ollama host (default: localhost)
-- `--port PORT`: Ollama port (default: 11434)
-
-### Output Options
-
-- `--label NAME`: Label for benchmark run
-- `--csv FILE`: Export to CSV
-- `--json FILE`: Export to JSON
-- `--parquet FILE`: Export to Parquet
-
-### Advanced Options
-
-- `--cold`: Force cold runs (unload between tests)
-- `--mem-split`: Capture RAM/VRAM split (default: enabled)
-- `--no-mem-split`: Disable memory monitoring
-- `--keep-alive DURATION`: Model keep-alive time (default: 2s)
-- `--ollama-bin PATH`: Path to ollama binary
-- `--config FILE`: Load configuration from YAML
-- `--debug`: Enable debug output
-
-## Memory Monitoring
-
-When `--mem-split` is enabled (default), the tool captures:
-
-- RAM/VRAM percentage split
-- Total memory usage in GB
-- Processor type (CPU/GPU/Mixed)
-- Context length from active model
-
-This requires the `ollama` CLI to be available in PATH or specified via `--ollama-bin`.
-
-## Export Formats
-
-### CSV Export
-
-Perfect for spreadsheet analysis and plotting:
-
-```csv
-model,timestamp,preloaded,tokens,load_s,eval_s,tokens_per_second,...
+# Then use:
+obench -s "phi4"
+omatrix --dry-run
 ```
 
-### JSON Export
+Or create simple wrapper scripts in the project root:
 
-Structured data for programmatic processing:
-
-```json
-[
-  {
-    "model": "phi4-mini:3.8b",
-    "tokens_per_second": 166.0,
-    "memory_gb": 2.3,
-    ...
-  }
-]
+```bash
+#!/bin/bash
+# benchmark.sh
+cd "$(dirname "$0")/ollama/benchmark"
+exec uv run --with-requirements requirements.txt benchmark_models.py "$@"
 ```
 
-### Parquet Export
+## Tips & Best Practices
 
-Efficient columnar format for data science workflows (requires `pyarrow`).
+### 1. Start with Default Models
 
-## Tips
+```bash
+uv run --with-requirements requirements.txt benchmark_models.py
+# Tests: phi4-mini:3.8b, gemma3:4b, deepseek-r1:8b, qwen3:8b, gpt-oss:latest, qwen3-coder:30b
+```
 
-- Use `--label` and `--csv` to compare baseline vs optimized runs
-- Run with `--repeat-runs` for statistical analysis
-- Use `--cold` to test cold-start performance
-- Pattern matching with `--select` supports regex for flexible model selection
-- The tool works with remote Ollama instances without local installation
+### 2. Use Labels for Comparisons
 
-## Requirements
+```bash
+# Baseline run
+uv run --with-requirements requirements.txt benchmark_models.py \
+  --label "baseline" \
+  --csv results/baseline.csv \
+  -s "gpt-oss"
 
-- Python 3.8+
-- Ollama API endpoint (local or remote)
-- Optional: `ollama` CLI for memory monitoring
+# After optimization
+uv run --with-requirements requirements.txt benchmark_models.py \
+  --label "optimized" \
+  --csv results/optimized.csv \
+  -s "gpt-oss"
+
+# Compare in Pandas
+python -c "
+import pandas as pd
+baseline = pd.read_csv('results/baseline.csv')
+optimized = pd.read_csv('results/optimized.csv')
+print(pd.concat([baseline, optimized]))
+"
+```
+
+### 3. Statistical Runs
+
+```bash
+uv run --with-requirements requirements.txt benchmark_models.py \
+  --repeat-runs 10 \
+  --csv results/stats.csv \
+  phi4-mini:3.8b
+```
+
+### 4. Memory Optimization Testing
+
+```bash
+# Test different keep-alive settings
+export OLLAMA_KEEP_ALIVE=30s
+uv run --with-requirements requirements.txt benchmark_models.py -s "all"
+
+# Or via CLI
+uv run --with-requirements requirements.txt benchmark_models.py \
+  --keep-alive "5m" \
+  -s "all"
+```
+
+## Troubleshooting
+
+### "No module named 'rich'"
+
+Install dependencies:
+
+```bash
+cd ollama/benchmark
+uv pip install -r requirements.txt
+```
+
+### Python Environment Issues
+
+Use `uv run` which handles environments automatically:
+
+```bash
+uv run --with-requirements requirements.txt benchmark_models.py --help
+```
+
+### Connection Errors
+
+Check Ollama is running:
+
+```bash
+curl http://localhost:11434/api/tags
+```
+
+Or specify different host:
+
+```bash
+uv run --with-requirements requirements.txt benchmark_models.py --host remote-host --port 11434
+```
+
+### Models Not Found
+
+List available models:
+
+```bash
+ollama ls
+```
+
+Pull missing models:
+
+```bash
+ollama pull phi4-mini:3.8b
+```
+
+## Documentation
+
+- [config/README.md](config/README.md) - Configuration guide
+- [CONFIG-ANALYSIS.md](CONFIG-ANALYSIS.md) - Technical analysis
+- [CHANGES.md](CHANGES.md) - Recent improvements
+- [MATRIX_TESTING.md](MATRIX_TESTING.md) - Matrix testing guide
+
+## Examples
+
+See the `examples/` directory for:
+
+- Custom prompts
+- Analysis scripts
+- Visualization notebooks
+- CI/CD integration examples
+
+## Contributing
+
+1. Test changes with `uv run`:
+
+   ```bash
+   uv run --with-requirements requirements.txt benchmark_models.py --debug
+   ```
+
+2. Run with dry-run mode first:
+
+   ```bash
+   uv run --with-requirements requirements.txt run_matrix.py --dry-run
+   ```
+
+3. Check results format:
+
+   ```bash
+   python -c "import pandas as pd; print(pd.read_csv('results/benchmark.csv'))"
+   ```
+
+## License
+
+See project root for license information.

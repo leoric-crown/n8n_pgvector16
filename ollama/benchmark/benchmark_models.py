@@ -22,6 +22,7 @@ from typing import Dict, List, Optional, Tuple, Any, Union
 import warnings
 
 import pandas as pd
+import psutil
 import requests
 import yaml
 from rich.console import Console
@@ -53,27 +54,70 @@ class BenchmarkConfig:
     mem_split: bool = True
     debug: bool = False
     label: Optional[str] = None
-    csv_output: Optional[Path] = None
-    json_output: Optional[Path] = None
-    parquet_output: Optional[Path] = None
+    output_dir: Optional[Path] = None
+    export_csv: bool = False
+    export_json: bool = False
+    export_parquet: bool = False
     config_file: Optional[Path] = None
     repeat_runs: int = 1
     keep_alive: str = "2s"
     ollama_bin: str = "ollama"
     enable_streaming: bool = True
+    cold_run: bool = False  # Force cold runs (unload models between tests)
+    seed: Optional[int] = None  # Random seed for deterministic results
 
     @classmethod
     def from_yaml(cls, path: Path) -> 'BenchmarkConfig':
-        """Load configuration from YAML file"""
+        """Load configuration from YAML file, ignoring unknown fields"""
         with open(path, 'r') as f:
             data = yaml.safe_load(f)
-        return cls(**data)
+
+        # Filter to only include fields that exist in the dataclass
+        import inspect
+        valid_fields = {f.name for f in inspect.signature(cls).parameters.values()}
+        filtered_data = {k: v for k, v in data.items() if k in valid_fields}
+
+        return cls(**filtered_data)
 
     def merge_args(self, args: argparse.Namespace) -> None:
         """Merge command-line arguments into configuration"""
         for key, value in vars(args).items():
-            if value is not None:
+            # Handle the export format flags specially
+            if key == '_csv_flag' and value:
+                self.export_csv = True
+            elif key == '_json_flag' and value:
+                self.export_json = True
+            elif key == '_parquet_flag' and value:
+                self.export_parquet = True
+            elif key.startswith('_'):
+                # Skip internal flags
+                continue
+            elif value is not None:
                 setattr(self, key, value)
+
+        # If output_dir is set but no formats specified, default to CSV
+        if self.output_dir and not (self.export_csv or self.export_json or self.export_parquet):
+            self.export_csv = True
+
+    def load_from_env(self) -> None:
+        """Load configuration from environment variables (lowest precedence)"""
+        env_mappings = {
+            'OLLAMA_HOST': ('host', str),
+            'OLLAMA_PORT': ('port', int),
+            'OLLAMA_NUM_PREDICT': ('num_predict', int),
+            'OLLAMA_NUM_CTX': ('num_ctx', int),
+            'OLLAMA_TEMPERATURE': ('temperature', float),
+            'OLLAMA_KEEP_ALIVE': ('keep_alive', str),
+            'OLLAMA_DEBUG': ('debug', lambda x: x.lower() in ('true', '1', 'yes')),
+        }
+
+        for env_var, (config_key, type_func) in env_mappings.items():
+            value = os.environ.get(env_var)
+            if value is not None:
+                try:
+                    setattr(self, config_key, type_func(value))
+                except (ValueError, TypeError):
+                    pass  # Skip invalid values
 
 
 @dataclass
@@ -131,6 +175,455 @@ class MemoryInfo:
 
 
 @dataclass
+class SystemInfo:
+    """System hardware information"""
+    cpu_model: str = "Unknown"
+    cpu_cores_physical: int = 0
+    cpu_cores_logical: int = 0
+    ram_total_gb: float = 0.0
+    ram_speed_mhz: int = 0
+    gpu_model: str = "Unknown"
+    gpu_vram_gb: float = 0.0
+    gpu_count: int = 0
+    platform: str = ""
+    os_name: str = ""
+    os_version: str = ""
+    kernel_version: str = ""
+    python_version: str = ""
+    storage_type: str = "Unknown"
+    storage_model: str = "Unknown"
+    storage_path: str = ""
+    storage_total_gb: float = 0.0
+    storage_free_gb: float = 0.0
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for export"""
+        return {
+            'cpu_model': self.cpu_model,
+            'cpu_cores_physical': self.cpu_cores_physical,
+            'cpu_cores_logical': self.cpu_cores_logical,
+            'ram_total_gb': round(self.ram_total_gb, 2),
+            'ram_speed_mhz': self.ram_speed_mhz,
+            'gpu_model': self.gpu_model,
+            'gpu_vram_gb': round(self.gpu_vram_gb, 2) if self.gpu_vram_gb else 0,
+            'gpu_count': self.gpu_count,
+            'platform': self.platform,
+            'os_name': self.os_name,
+            'os_version': self.os_version,
+            'kernel_version': self.kernel_version,
+            'python_version': self.python_version,
+            'storage_type': self.storage_type,
+            'storage_model': self.storage_model,
+            'storage_path': self.storage_path,
+            'storage_total_gb': round(self.storage_total_gb, 2),
+            'storage_free_gb': round(self.storage_free_gb, 2),
+        }
+
+
+def collect_system_info() -> SystemInfo:
+    """Collect system hardware information"""
+    import platform
+    import shutil
+
+    info = SystemInfo()
+
+    try:
+        # Basic platform info
+        info.platform = f"{platform.system()} {platform.release()}"
+        info.python_version = platform.python_version()
+        info.kernel_version = platform.release()
+
+        # Detailed OS info
+        system = platform.system()
+        info.os_name = system
+
+        if system == "Linux":
+            try:
+                # Try to get distribution info
+                import distro
+                info.os_name = f"{distro.name()} {distro.version()}"
+                info.os_version = distro.version()
+            except ImportError:
+                # Fallback without distro module
+                try:
+                    with open('/etc/os-release', 'r') as f:
+                        for line in f:
+                            if line.startswith('PRETTY_NAME='):
+                                info.os_name = line.split('=')[1].strip().strip('"')
+                            elif line.startswith('VERSION_ID='):
+                                info.os_version = line.split('=')[1].strip().strip('"')
+                except:
+                    info.os_name = "Linux"
+        elif system == "Darwin":
+            try:
+                mac_ver = platform.mac_ver()[0]
+                info.os_name = "macOS"
+                info.os_version = mac_ver
+                # Try to get macOS name
+                result = subprocess.run(['sw_vers', '-productVersion'],
+                                      capture_output=True, text=True, timeout=2)
+                if result.returncode == 0:
+                    info.os_version = result.stdout.strip()
+            except:
+                info.os_name = "macOS"
+        elif system == "Windows":
+            try:
+                info.os_name = f"Windows {platform.release()}"
+                info.os_version = platform.version()
+            except:
+                info.os_name = "Windows"
+
+        # CPU info
+        info.cpu_cores_physical = psutil.cpu_count(logical=False) or 0
+        info.cpu_cores_logical = psutil.cpu_count(logical=True) or 0
+
+        # Try to get CPU model
+        try:
+            if platform.system() == "Linux":
+                with open('/proc/cpuinfo', 'r') as f:
+                    for line in f:
+                        if 'model name' in line:
+                            info.cpu_model = line.split(':')[1].strip()
+                            break
+            elif platform.system() == "Darwin":  # macOS
+                result = subprocess.run(['sysctl', '-n', 'machdep.cpu.brand_string'],
+                                      capture_output=True, text=True, timeout=2)
+                if result.returncode == 0:
+                    info.cpu_model = result.stdout.strip()
+            elif platform.system() == "Windows":
+                result = subprocess.run(['wmic', 'cpu', 'get', 'name'],
+                                      capture_output=True, text=True, timeout=2)
+                if result.returncode == 0:
+                    lines = result.stdout.strip().split('\n')
+                    if len(lines) > 1:
+                        info.cpu_model = lines[1].strip()
+        except:
+            pass
+
+        # RAM info
+        mem = psutil.virtual_memory()
+        info.ram_total_gb = mem.total / (1024**3)
+
+        # Try to get RAM speed
+        try:
+            if system == "Linux":
+                # Try dmidecode for RAM speed (without sudo first, then with)
+                for use_sudo in [False, True]:
+                    cmd = ['dmidecode', '--type', 'memory']
+                    if use_sudo:
+                        cmd = ['sudo', '-n'] + cmd  # -n = non-interactive
+                    try:
+                        result = subprocess.run(
+                            cmd,
+                            capture_output=True, text=True, timeout=5
+                        )
+                        if result.returncode == 0:
+                            for line in result.stdout.split('\n'):
+                                if 'Speed:' in line and 'MHz' in line and 'Unknown' not in line:
+                                    try:
+                                        speed_str = line.split(':')[1].strip().split()[0]
+                                        speed = int(speed_str)
+                                        if speed > 0:  # Ignore 0 or negative values
+                                            info.ram_speed_mhz = speed
+                                            break
+                                    except:
+                                        pass
+                            if info.ram_speed_mhz > 0:
+                                break
+                    except:
+                        pass
+            elif system == "Darwin":
+                # macOS doesn't easily expose RAM speed
+                pass
+            elif system == "Windows":
+                # Try wmic for RAM speed
+                result = subprocess.run(
+                    ['wmic', 'memorychip', 'get', 'Speed'],
+                    capture_output=True, text=True, timeout=5
+                )
+                if result.returncode == 0:
+                    lines = result.stdout.strip().split('\n')
+                    if len(lines) > 1:
+                        try:
+                            info.ram_speed_mhz = int(lines[1].strip())
+                        except:
+                            pass
+        except:
+            pass
+
+        # GPU info - try NVIDIA first, then other methods
+        try:
+            # Try nvidia-smi
+            result = subprocess.run(
+                ['nvidia-smi', '--query-gpu=name,memory.total', '--format=csv,noheader,nounits'],
+                capture_output=True, text=True, timeout=5
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                lines = result.stdout.strip().split('\n')
+                info.gpu_count = len(lines)
+                if lines:
+                    # Use first GPU info
+                    parts = lines[0].split(',')
+                    if len(parts) >= 2:
+                        info.gpu_model = parts[0].strip()
+                        try:
+                            info.gpu_vram_gb = float(parts[1].strip()) / 1024
+                        except:
+                            pass
+                    # If multiple GPUs, append count to model
+                    if len(lines) > 1:
+                        info.gpu_model = f"{info.gpu_model} x{len(lines)}"
+        except FileNotFoundError:
+            # nvidia-smi not found, try other methods
+            try:
+                # Try rocm-smi for AMD GPUs
+                result = subprocess.run(
+                    ['rocm-smi', '--showproductname'],
+                    capture_output=True, text=True, timeout=5
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    info.gpu_model = "AMD GPU (detected via rocm-smi)"
+                    info.gpu_count = 1
+            except FileNotFoundError:
+                # Try lspci on Linux
+                if platform.system() == "Linux":
+                    try:
+                        result = subprocess.run(
+                            ['lspci'], capture_output=True, text=True, timeout=2
+                        )
+                        if result.returncode == 0:
+                            for line in result.stdout.split('\n'):
+                                if 'VGA' in line or 'Display' in line or '3D' in line:
+                                    # Extract GPU name
+                                    if ':' in line:
+                                        gpu_info = line.split(':', 1)[1].strip()
+                                        if 'NVIDIA' in gpu_info or 'AMD' in gpu_info or 'Intel' in gpu_info:
+                                            info.gpu_model = gpu_info
+                                            info.gpu_count = 1
+                                            break
+                    except:
+                        pass
+        except:
+            pass
+
+        # Storage info - check where Ollama models are stored
+        try:
+            # Determine model storage path
+            models_path = os.environ.get('OLLAMA_MODELS')
+
+            if not models_path and system == "Linux":
+                # Check systemd service configuration for OLLAMA_MODELS
+                try:
+                    result = subprocess.run(
+                        ['systemctl', 'show', 'ollama', '--property=Environment'],
+                        capture_output=True, text=True, timeout=5
+                    )
+                    if result.returncode == 0:
+                        # Parse Environment= line
+                        for line in result.stdout.split('\n'):
+                            if 'OLLAMA_MODELS=' in line:
+                                # Extract the path from Environment="OLLAMA_MODELS=/path/to/models"
+                                parts = line.split('OLLAMA_MODELS=')
+                                if len(parts) > 1:
+                                    # Handle quoted or unquoted paths
+                                    path = parts[1].split()[0].strip('"\'')
+                                    models_path = path
+                                    break
+                except:
+                    pass
+
+            if not models_path:
+                # Use default locations
+                if system == "Linux":
+                    models_path = os.path.expanduser('~/.ollama/models')
+                elif system == "Darwin":
+                    models_path = os.path.expanduser('~/.ollama/models')
+                elif system == "Windows":
+                    models_path = os.path.expanduser('~/.ollama/models')
+
+            # If path exists, get storage info
+            if models_path and os.path.exists(models_path):
+                info.storage_path = models_path
+
+                # Get disk usage for this path
+                usage = shutil.disk_usage(models_path)
+                info.storage_total_gb = usage.total / (1024**3)
+                info.storage_free_gb = usage.free / (1024**3)
+
+                # Try to determine if SSD or HDD and get model info
+                try:
+                    if system == "Linux":
+                        # Get the mount point and device
+                        import stat
+                        st = os.stat(models_path)
+                        dev = st.st_dev
+                        major = os.major(dev)
+                        minor = os.minor(dev)
+
+                        device_name = None
+
+                        # Try to find the device name
+                        for name in os.listdir('/sys/block'):
+                            dev_path = f'/sys/block/{name}'
+                            try:
+                                with open(f'{dev_path}/dev', 'r') as f:
+                                    if f.read().strip() == f'{major}:{minor}':
+                                        device_name = name
+                                        # Check if rotational (HDD=1, SSD=0)
+                                        with open(f'{dev_path}/queue/rotational', 'r') as f:
+                                            is_rotational = f.read().strip() == '1'
+                                            info.storage_type = "HDD" if is_rotational else "SSD"
+
+                                        # Get device model
+                                        try:
+                                            with open(f'{dev_path}/device/model', 'r') as f:
+                                                info.storage_model = f.read().strip()
+                                        except:
+                                            pass
+                                        break
+                            except:
+                                # Try checking parent device for partitions
+                                if name.startswith('sd') or name.startswith('nvme'):
+                                    try:
+                                        # For partitions like sda1, check sda
+                                        parent = name.rstrip('0123456789')
+                                        parent_path = f'/sys/block/{parent}'
+                                        with open(f'{parent_path}/queue/rotational', 'r') as f:
+                                            is_rotational = f.read().strip() == '1'
+                                            info.storage_type = "HDD" if is_rotational else "SSD"
+
+                                        # Get device model from parent
+                                        try:
+                                            with open(f'{parent_path}/device/model', 'r') as f:
+                                                info.storage_model = f.read().strip()
+                                        except:
+                                            pass
+
+                                        device_name = parent
+                                        break
+                                    except:
+                                        pass
+
+                        # If we found device but couldn't determine type, check for nvme
+                        if info.storage_type == "Unknown" or not device_name:
+                            result = subprocess.run(
+                                ['df', models_path],
+                                capture_output=True, text=True, timeout=2
+                            )
+                            if result.returncode == 0:
+                                lines = result.stdout.strip().split('\n')
+                                if len(lines) > 1:
+                                    device = lines[1].split()[0]
+                                    if 'nvme' in device:
+                                        info.storage_type = "NVMe SSD"
+                                        # Try to get NVMe model from device name
+                                        # NVMe devices: nvme0n1p4 -> nvme0n1, nvme1n1 -> nvme1n1
+                                        device_basename = os.path.basename(device)
+                                        if 'p' in device_basename:
+                                            device_basename = device_basename.split('p')[0]
+                                        device_name = device_basename
+                                        try:
+                                            with open(f'/sys/block/{device_basename}/device/model', 'r') as f:
+                                                info.storage_model = f.read().strip()
+                                        except:
+                                            pass
+                                    elif 'mmc' in device:
+                                        # Could be SD card or SSD
+                                        info.storage_type = "SSD/Flash"
+                                        device_basename = os.path.basename(device).rstrip('0123456789p')
+                                        device_name = device_basename
+                                    elif 'sd' in device:
+                                        # SATA/SCSI device: sda1 -> sda
+                                        device_basename = os.path.basename(device).rstrip('0123456789')
+                                        device_name = device_basename
+                                        # Check if SSD or HDD
+                                        try:
+                                            with open(f'/sys/block/{device_basename}/queue/rotational', 'r') as f:
+                                                is_rotational = f.read().strip() == '1'
+                                                info.storage_type = "HDD" if is_rotational else "SSD"
+                                        except:
+                                            info.storage_type = "Storage"
+
+                        # If still no model, try lsblk or smartctl
+                        if info.storage_model == "Unknown" and device_name:
+                            try:
+                                # Try lsblk for model info
+                                result = subprocess.run(
+                                    ['lsblk', '-ndo', 'MODEL', f'/dev/{device_name}'],
+                                    capture_output=True, text=True, timeout=2
+                                )
+                                if result.returncode == 0 and result.stdout.strip():
+                                    info.storage_model = result.stdout.strip()
+                            except:
+                                pass
+
+                    elif system == "Darwin":
+                        # macOS - check if APFS (usually SSD) or HFS+ (could be HDD)
+                        result = subprocess.run(
+                            ['diskutil', 'info', models_path],
+                            capture_output=True, text=True, timeout=5
+                        )
+                        if result.returncode == 0:
+                            output = result.stdout
+                            if 'Solid State' in output or 'SSD' in output:
+                                info.storage_type = "SSD"
+                            elif 'APFS' in output:
+                                info.storage_type = "SSD (APFS)"
+                            elif 'Rotational' in output:
+                                info.storage_type = "HDD"
+
+                            # Try to extract device name/model
+                            for line in output.split('\n'):
+                                if 'Device / Media Name:' in line:
+                                    info.storage_model = line.split(':', 1)[1].strip()
+                                    break
+                                elif 'Device Identifier:' in line and info.storage_model == "Unknown":
+                                    # Fallback to device identifier
+                                    info.storage_model = line.split(':', 1)[1].strip()
+
+                    elif system == "Windows":
+                        # Windows - try to get drive type and model
+                        import ctypes
+                        drive = os.path.splitdrive(models_path)[0]
+                        if drive:
+                            # Get drive type using Windows API
+                            drive_letter = drive + '\\'
+                            drive_type = ctypes.windll.kernel32.GetDriveTypeW(drive_letter)
+                            if drive_type == 3:  # DRIVE_FIXED
+                                # Try wmic to determine if SSD and get model
+                                result = subprocess.run(
+                                    ['wmic', 'diskdrive', 'get', 'Model,MediaType'],
+                                    capture_output=True, text=True, timeout=5
+                                )
+                                if result.returncode == 0:
+                                    lines = result.stdout.strip().split('\n')
+                                    if len(lines) > 1:
+                                        # Parse the output
+                                        for line in lines[1:]:
+                                            if line.strip():
+                                                parts = line.strip().split(None, 1)
+                                                if len(parts) > 0:
+                                                    info.storage_model = parts[0]
+                                                if 'SSD' in line or 'Solid State' in line:
+                                                    info.storage_type = "SSD"
+                                                else:
+                                                    info.storage_type = "HDD"
+                                                break
+                except:
+                    # If we can't determine type, at least note it's storage
+                    if info.storage_type == "Unknown" and info.storage_total_gb > 0:
+                        info.storage_type = "Storage"
+        except:
+            pass
+
+    except Exception as e:
+        # Fail gracefully
+        pass
+
+    return info
+
+
+@dataclass
 class PartialResult:
     """Partial result while benchmark is running"""
     model: str
@@ -153,6 +646,7 @@ class BenchmarkResult:
     context_length: int = 0
     memory_info: Optional[MemoryInfo] = None
     model_info: Optional[ModelInfo] = None
+    system_info: Optional[SystemInfo] = None
     error: Optional[str] = None
     label: Optional[str] = None
     response_text: Optional[str] = None
@@ -184,8 +678,22 @@ class BenchmarkResult:
             return self.tokens / self.eval_s
         return 0
 
+    @property
+    def chars_per_token(self) -> float:
+        """Average characters per token (tokenization efficiency)"""
+        if self.tokens > 0 and self.response_text:
+            return len(self.response_text) / self.tokens
+        return 0
+
+    @property
+    def chars_per_second(self) -> float:
+        """Characters generated per second"""
+        if self.eval_s > 0 and self.response_text:
+            return len(self.response_text) / self.eval_s
+        return 0
+
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for export"""
+        """Convert to dictionary for export (without system info - saved separately)"""
         d = {
             'model': self.model,
             'timestamp': self.timestamp.isoformat(),
@@ -196,6 +704,8 @@ class BenchmarkResult:
             'total_s': round(self.total_s, 3),
             'prompt_eval_s': round(self.prompt_eval_s, 3),
             'tokens_per_second': round(self.tokens_per_second, 1),
+            'chars_per_token': round(self.chars_per_token, 2) if self.chars_per_token > 0 else 0,
+            'chars_per_second': round(self.chars_per_second, 1) if self.chars_per_second > 0 else 0,
             'context_length': self.context_length,
             'label': self.label,
             'error': self.error,
@@ -205,11 +715,12 @@ class BenchmarkResult:
             d['disk_gb'] = self.model_info.disk_gb
 
         if self.memory_info:
-            d['ram_percent'] = self.memory_info.ram_percent
-            d['vram_percent'] = self.memory_info.vram_percent
+            d['cpu_percent'] = self.memory_info.ram_percent
+            d['gpu_percent'] = self.memory_info.vram_percent
             d['memory_gb'] = self.memory_info.size_gb
             d['processor'] = self.memory_info.processor
 
+        # System info is now saved separately, not in each row
         return d
 
 
@@ -221,6 +732,7 @@ class OllamaBenchmark:
         self.api_base = f"http://{config.host}:{config.port}"
         self.results: List[BenchmarkResult] = []
         self._model_cache: Dict[str, ModelInfo] = {}
+        self.system_info = collect_system_info()  # Collect once at initialization
 
     def get_available_models(self) -> List[ModelInfo]:
         """Get list of available models from Ollama"""
@@ -389,12 +901,17 @@ class OllamaBenchmark:
                                 pass
 
                     # Set processor string
-                    if mem_info.vram_percent > 0:
-                        if mem_info.ram_percent > 0:
-                            mem_info.processor = f"{mem_info.ram_percent}%/{mem_info.vram_percent}% CPU/GPU"
-                        else:
-                            mem_info.processor = f"{mem_info.vram_percent}% GPU"
+                    if mem_info.ram_percent > 0 and mem_info.vram_percent > 0:
+                        # Split format
+                        mem_info.processor = f"{mem_info.ram_percent}%/{mem_info.vram_percent}% CPU/GPU"
+                    elif mem_info.vram_percent > 0:
+                        # GPU only
+                        mem_info.processor = f"{mem_info.vram_percent}% GPU"
+                    elif mem_info.ram_percent > 0:
+                        # CPU only (show percentage)
+                        mem_info.processor = f"{mem_info.ram_percent}% CPU"
                     else:
+                        # Fallback
                         mem_info.processor = "CPU"
 
                     return mem_info
@@ -576,6 +1093,7 @@ Requirements:
             prompt_eval_duration_ns=prompt_eval_duration_ns,
             context_length=self.config.num_ctx,
             model_info=model_info,
+            system_info=self.system_info,
             label=self.config.label,
             response_text=response_text,
             error=error_msg
@@ -636,6 +1154,7 @@ Requirements:
                 prompt_eval_duration_ns=data.get('prompt_eval_duration', 0),
                 context_length=self.config.num_ctx,
                 model_info=model_info,
+                system_info=self.system_info,
                 label=self.config.label,
                 response_text=data.get('response', '')
             )
@@ -656,6 +1175,7 @@ Requirements:
                 preloaded=preloaded,
                 error=str(e),
                 model_info=model_info,
+                system_info=self.system_info,
                 label=self.config.label
             )
 
@@ -829,7 +1349,8 @@ Requirements:
 
         table.add_column("Load (s)", justify="right", style="white", min_width=7)
         table.add_column("Eval (s)", justify="right", style="white", min_width=7)
-        table.add_column("Tok/s", justify="right", style="green", min_width=10)
+        table.add_column("Tok/s", justify="right", style="green", min_width=6)
+        table.add_column("Ch/Tok", justify="right", style="bright_cyan", min_width=6)
         table.add_column("Total (s)", justify="right", style="white", min_width=8)
 
         # Add rows
@@ -856,10 +1377,11 @@ Requirements:
                         "[yellow]⏳[/yellow]",  # Load
                         "[yellow]⏳[/yellow]",  # Eval
                         "[yellow]STREAMING...[/yellow]",  # Tok/s
+                        "...",                  # Ch/Tok
                         "[yellow]⏳[/yellow]"   # Total
                     ])
                 else:
-                    row.extend(["...", "...", "...", "..."])
+                    row.extend(["...", "...", "...", "...", "..."])
 
             elif hasattr(result, 'error') and result.error:
                 # Error row
@@ -874,10 +1396,11 @@ Requirements:
                 row.extend(["n/a", "n/a"])
 
                 row.extend([
-                    "[red]ERROR[/red]",
-                    "[red]ERROR[/red]",
-                    "[red]ERROR[/red]",
-                    "[red]ERROR[/red]"
+                    "[red]ERROR[/red]",  # Load
+                    "[red]ERROR[/red]",  # Eval
+                    "[red]ERROR[/red]",  # Tok/s
+                    "[red]ERROR[/red]",  # Ch/Tok
+                    "[red]ERROR[/red]"   # Total
                 ])
 
             else:
@@ -911,13 +1434,35 @@ Requirements:
                 else:
                     tps_str = f"[red]{tps:.1f}[/red]"
 
+                # Characters per token (tokenization efficiency)
+                cpt = result.chars_per_token
+                if cpt > 0:
+                    cpt_str = f"[bright_cyan]{cpt:.2f}[/bright_cyan]"
+                else:
+                    cpt_str = "[dim]n/a[/dim]"
+
                 total_s = f"{result.total_s:.3f}"
 
-                row.extend([load_s, eval_s, tps_str, total_s])
+                row.extend([load_s, eval_s, tps_str, cpt_str, total_s])
 
             table.add_row(*row)
 
         return table
+
+    def _ensure_output_path(self, output_path: Path) -> Path:
+        """Ensure output path exists, creating timestamped subdir if needed"""
+        output_path = Path(output_path)
+
+        # If path is just a simple directory name, create timestamped subdirectory
+        if not output_path.parent or output_path.parent == Path('.') or output_path.name == 'results':
+            timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
+            results_dir = output_path / timestamp
+            results_dir.mkdir(parents=True, exist_ok=True)
+            return results_dir
+
+        # Otherwise, use the directory as-is
+        output_path.mkdir(parents=True, exist_ok=True)
+        return output_path
 
     def export_results(self, results: List[BenchmarkResult]) -> None:
         """Export results to configured formats"""
@@ -927,21 +1472,34 @@ Requirements:
         # Convert to DataFrame for easy export
         df = pd.DataFrame([r.to_dict() for r in results])
 
-        # CSV export
-        if self.config.csv_output:
-            df.to_csv(self.config.csv_output, index=False)
-            console.print(f"[green]✓[/green] Results saved to {self.config.csv_output}")
+        if not self.config.output_dir:
+            return
 
-        # JSON export
-        if self.config.json_output:
-            with open(self.config.json_output, 'w') as f:
+        output_dir = self._ensure_output_path(self.config.output_dir)
+
+        # Export to requested formats with standard names
+        if self.config.export_csv:
+            csv_path = output_dir / "benchmark.csv"
+            df.to_csv(csv_path, index=False)
+            console.print(f"[green]✓[/green] Results saved to {csv_path}")
+
+        if self.config.export_json:
+            json_path = output_dir / "benchmark.json"
+            with open(json_path, 'w') as f:
                 json.dump([r.to_dict() for r in results], f, indent=2, default=str)
-            console.print(f"[green]✓[/green] Results saved to {self.config.json_output}")
+            console.print(f"[green]✓[/green] Results saved to {json_path}")
 
-        # Parquet export
-        if self.config.parquet_output:
-            df.to_parquet(self.config.parquet_output, index=False)
-            console.print(f"[green]✓[/green] Results saved to {self.config.parquet_output}")
+        if self.config.export_parquet:
+            parquet_path = output_dir / "benchmark.parquet"
+            df.to_parquet(parquet_path, index=False)
+            console.print(f"[green]✓[/green] Results saved to {parquet_path}")
+
+        # Save system info to separate file in the same directory
+        if self.system_info:
+            system_info_path = output_dir / "system_info.json"
+            with open(system_info_path, 'w') as f:
+                json.dump(self.system_info.to_dict(), f, indent=2, default=str)
+            console.print(f"[green]✓[/green] System info saved to {system_info_path}")
 
     def run(self) -> None:
         """Run the complete benchmark suite with live updates"""
@@ -954,6 +1512,37 @@ Requirements:
             title="Configuration",
             border_style="cyan"
         ))
+
+        # Print system information
+        sys_table = Table(show_header=False, box=None)
+        sys_table.add_column("Component", style="cyan")
+        sys_table.add_column("Info", style="white")
+
+        sys_table.add_row("CPU", f"{self.system_info.cpu_model} ({self.system_info.cpu_cores_physical}C/{self.system_info.cpu_cores_logical}T)")
+
+        ram_info = f"{self.system_info.ram_total_gb:.1f} GB"
+        if self.system_info.ram_speed_mhz > 0:
+            ram_info += f" @ {self.system_info.ram_speed_mhz} MHz"
+        sys_table.add_row("RAM", ram_info)
+
+        if self.system_info.gpu_count > 0:
+            gpu_info = f"{self.system_info.gpu_model}"
+            if self.system_info.gpu_vram_gb > 0:
+                gpu_info += f" ({self.system_info.gpu_vram_gb:.1f} GB VRAM)"
+            sys_table.add_row("GPU", gpu_info)
+
+        # Show storage info if we found the models path
+        if self.system_info.storage_path and self.system_info.storage_total_gb > 0:
+            storage_info = f"{self.system_info.storage_type}"
+            if self.system_info.storage_model != "Unknown":
+                storage_info = f"{self.system_info.storage_model} ({self.system_info.storage_type})"
+            storage_info += f" - {self.system_info.storage_free_gb:.1f}/{self.system_info.storage_total_gb:.1f} GB free"
+            sys_table.add_row("Storage", storage_info)
+            sys_table.add_row("Models Path", self.system_info.storage_path)
+
+        sys_table.add_row("OS", f"{self.system_info.os_name} (kernel {self.system_info.kernel_version})")
+
+        console.print(Panel(sys_table, title="System Information", border_style="blue"))
 
         # Print environment variables if set
         env_vars = ['OLLAMA_NUM_PARALLEL', 'OLLAMA_MAX_LOADED_MODELS',
@@ -1049,6 +1638,11 @@ Requirements:
 
                     # Brief pause to show result before next test
                     time.sleep(1)
+
+                    # If cold_run enabled, stop model after each run (including repeat runs)
+                    if self.config.cold_run and (run_idx < self.config.repeat_runs - 1 or model_idx < len(models) - 1):
+                        self.stop_model(model)
+                        time.sleep(0.5)  # Brief pause after stopping
 
                 prev_model = model
 
@@ -1178,18 +1772,21 @@ def parse_arguments() -> argparse.Namespace:
         help='Label for this benchmark run'
     )
     output_group.add_argument(
-        '--csv', dest='csv_output', type=Path,
-        help='Export results to CSV file'
+        '-o', '--output', '--output-dir', dest='output_dir', type=Path, nargs='?', const=Path('results'),
+        help='Output directory for results (defaults to "results" if no path given, auto-creates timestamped subdir)'
     )
     output_group.add_argument(
-        '--json', dest='json_output', type=Path,
-        help='Export results to JSON file'
+        '--csv', '--export-csv', dest='_csv_flag', action='store_true',
+        help='Export results to CSV (use with --output)'
     )
     output_group.add_argument(
-        '--parquet', dest='parquet_output', type=Path,
-        help='Export results to Parquet file'
+        '--json', '--export-json', dest='_json_flag', action='store_true',
+        help='Export results to JSON (use with --output)'
     )
-
+    output_group.add_argument(
+        '--parquet', '--export-parquet', dest='_parquet_flag', action='store_true',
+        help='Export results to Parquet (use with --output)'
+    )
     # Advanced options
     adv_group = parser.add_argument_group("Advanced Options")
     adv_group.add_argument(
@@ -1202,11 +1799,19 @@ def parse_arguments() -> argparse.Namespace:
     )
     adv_group.add_argument(
         '--config', dest='config_file', type=Path,
-        help='Load configuration from YAML file'
+        help='Load configuration from YAML file (default: config/benchmark_config.yaml if exists)'
     )
     adv_group.add_argument(
         '--no-streaming', dest='enable_streaming', action='store_false',
         help='Disable streaming responses (use static display)'
+    )
+    adv_group.add_argument(
+        '--cold-run', dest='cold_run', action='store_true',
+        help='Force cold runs - unload model after each test (default: False)'
+    )
+    adv_group.add_argument(
+        '--seed', type=int,
+        help='Random seed for deterministic results'
     )
     adv_group.add_argument(
         '--debug', action='store_true',
@@ -1220,11 +1825,23 @@ def main():
     """Main entry point"""
     args = parse_arguments()
 
-    # Create configuration
+    # Create configuration with proper precedence: CLI > ENV > YAML > Defaults
+    # Step 1: Start with defaults
+    config = BenchmarkConfig()
+
+    # Step 2: Load environment variables (override defaults)
+    config.load_from_env()
+
+    # Step 3: Load YAML config (override env vars)
+    # Check for default config file if none specified
+    if not args.config_file:
+        default_config = Path(__file__).parent / 'config' / 'benchmark_config.yaml'
+        if default_config.exists():
+            args.config_file = default_config
+
     if args.config_file and args.config_file.exists():
         config = BenchmarkConfig.from_yaml(args.config_file)
-    else:
-        config = BenchmarkConfig()
+        config.load_from_env()  # Re-apply env vars to YAML-loaded config
 
     # Handle model arguments
     if args.model_list:
@@ -1237,7 +1854,7 @@ def main():
         args.select_pattern = args.select
         delattr(args, 'select')
 
-    # Merge command-line arguments
+    # Step 4: Merge command-line arguments (highest precedence)
     config.merge_args(args)
 
     # Run benchmark
