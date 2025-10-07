@@ -5,5 +5,5 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
-echo uv run --with-requirements requirements.txt benchmark_models.py "$@"
-exec uv run --with-requirements requirements.txt benchmark_models.py "$@"
+echo uv run --with-requirements requirements.txt src/benchmark_models.py "$@"
+exec uv run --with-requirements requirements.txt src/benchmark_models.py "$@"

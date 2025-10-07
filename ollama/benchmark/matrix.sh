@@ -7,5 +7,5 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-echo uv run --with-requirements requirements.txt run_matrix.py "$@"
-exec uv run --with-requirements requirements.txt run_matrix.py "$@"
+echo uv run --with-requirements requirements.txt src/run_matrix.py "$@"
+exec uv run --with-requirements requirements.txt src/run_matrix.py "$@"

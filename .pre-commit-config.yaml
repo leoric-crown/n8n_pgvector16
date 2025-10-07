@@ -19,7 +19,7 @@ repos:
       - id: check-toml
       - id: check-xml
       - id: check-added-large-files
-        args: ["--maxkb=500"]
+        args: ["--maxkb=1024"] # Allow up to 1MB for generated charts
       - id: check-merge-conflict
       - id: detect-private-key
       - id: check-case-conflict

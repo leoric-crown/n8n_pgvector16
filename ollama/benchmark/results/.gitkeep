@@ -1,5 +1,0 @@
-# Results Directory
-
-Benchmark results (CSV, JSON, Parquet files) are stored here.
-
-Files in this directory are typically not committed to git (see .gitignore).

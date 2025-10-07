@@ -956,10 +956,8 @@ class OllamaBenchmark:
 
 Requirements:
 - Output exactly five sentences.
-- Each sentence must contain 14-16 words.
 - Use plain English; avoid brand names, URLs, or platform-specific details.
-- Do not include lists, headings, code, markdown, apologies, or meta commentary.
-- Provide only the paragraph content; no title, no introduction, no closing."""
+- Do not include lists, headings, code, markdown, apologies, or meta commentary."""
 
     def run_benchmark_streaming(self, model: str, prompt: str, live_display, all_results, progress_text, next_model, current_last_response: Optional[str] = None, current_last_response_model: Optional[str] = None) -> BenchmarkResult:
         """Run a streaming benchmark test with live response display and memory monitoring"""

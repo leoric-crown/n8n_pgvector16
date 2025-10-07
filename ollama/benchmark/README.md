@@ -1,410 +1,265 @@
-# Ollama Benchmark Tools
+# 📊 Benchmark Tools
 
-Comprehensive benchmarking utilities for Ollama models with support for:
+> **Comprehensive performance testing for Ollama models across context window sizes**
 
-- 🚀 Live streaming display with rich terminal UI
-- 📊 Memory usage monitoring (RAM/VRAM split)
-- 🔄 Multiple context window sizes testing
-- 📈 Statistical analysis across runs
-- 💾 Export to CSV, JSON, and Parquet formats
+______________________________________________________________________
 
-## Published Benchmark Results
-
-This repository includes comprehensive benchmark results comparing LLM model performance on consumer hardware.
-
-📊 **[View published benchmark analysis →](../../docs/BENCHMARKS.md)**
-
-Key findings include context window scaling analysis (8K→100K tokens), memory efficiency comparisons, and real-world use
-case recommendations for models running on RTX 4090 (24GB VRAM).
-
-## Quick Start
-
-### Installation
-
-Using `uv` (recommended - fast and reliable):
+## ⚡ Quick Start
 
 ```bash
-cd ollama/benchmark
+# Test single model
+./bench.sh phi4-mini:3.8b
 
-# Dependencies are managed automatically with uv
-uv run --with-requirements requirements.txt benchmark_models.py --help
+# Test multiple by pattern
+./bench.sh -s "phi4|gemma3"
+
+# Full context matrix (8K → 128K)
+./matrix.sh
+
+# Generate charts from results
+./visualize.sh
 ```
 
-Or create a virtual environment:
+______________________________________________________________________
 
-```bash
-cd ollama/benchmark
-uv venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-uv pip install -r requirements.txt
-```
+## 📏 What Gets Measured
 
-### Basic Usage
+| **Metric**         | **Description**                                         |
+| :----------------- | :------------------------------------------------------ |
+| ⚡ **Performance** | Tokens/second across context sizes                      |
+| 💾 **Memory**      | VRAM allocated (model + KV cache) and GPU utilization % |
+| 📊 **Stability**   | Performance variance across runs                        |
+| 📉 **Degradation** | Speed changes as context grows                          |
 
-#### Single Model Benchmark
+______________________________________________________________________
 
-```bash
-# Using uv (recommended)
-uv run --with-requirements requirements.txt benchmark_models.py phi4-mini:3.8b
+## 📂 Output Structure
 
-# Or with activated venv
-./benchmark_models.py phi4-mini:3.8b
-```
-
-#### Multiple Models
-
-```bash
-# Pattern matching
-uv run --with-requirements requirements.txt benchmark_models.py -s "phi4|gemma3"
-
-# Explicit list
-uv run --with-requirements requirements.txt benchmark_models.py phi4-mini:3.8b gemma3:4b qwen3:8b
-```
-
-#### Context Window Matrix Test
-
-```bash
-# Run across multiple context sizes (8K, 16K, 32K, 64K, 100K)
-uv run --with-requirements requirements.txt run_matrix.py
-
-# Preview commands without running
-uv run --with-requirements requirements.txt run_matrix.py --dry-run
-
-# Override specific parameters
-uv run --with-requirements requirements.txt run_matrix.py --num-predict 2048 --temperature 0.5
-```
-
-## Configuration
-
-All tools support a **consistent configuration hierarchy**:
-
-```text
-CLI Flags > Environment Variables > YAML Config > Hardcoded Defaults
-```
-
-### Configuration Files
-
-Stored in `config/` directory:
-
-- `benchmark_config.yaml` - Default config for benchmark_models.py
-- `context_matrix.yaml` - Matrix test configuration
-
-See [config/README.md](config/README.md) for detailed configuration guide.
-
-### Environment Variables
-
-```bash
-export OLLAMA_HOST=localhost
-export OLLAMA_PORT=11434
-export OLLAMA_NUM_CTX=16384
-export OLLAMA_NUM_PREDICT=1024
-export OLLAMA_TEMPERATURE=0.2
-
-uv run --with-requirements requirements.txt benchmark_models.py -s "gpt-oss"
-```
-
-### Example Configurations
-
-```bash
-# Quick test with custom context
-uv run --with-requirements requirements.txt benchmark_models.py \
-  --num-ctx 8192 \
-  --num-predict 512 \
-  -s "phi4" \
-  --csv results/phi4_8k.csv
-
-# Statistical analysis with multiple runs
-uv run --with-requirements requirements.txt benchmark_models.py \
-  --repeat-runs 5 \
-  --temperature 0.2 \
-  phi4-mini:3.8b gemma3:4b
-
-# Matrix test with overrides
-uv run --with-requirements requirements.txt run_matrix.py \
-  --num-predict 2048 \
-  --repeat-runs 3
-```
-
-## Output
-
-Results are automatically saved to **timestamped subdirectories** in `results/`:
+Results saved to timestamped directories in `results/`:
 
 ```text
 results/
-├── 20250101-120000/
-│   ├── benchmark-8k.csv
-│   ├── benchmark-8k.json
-│   ├── benchmark-16k.csv
-│   └── benchmark-16k.json
-└── 20250101-130000/
-    └── single-model.csv
+├── 20251006-012211/           # Latest run
+│   ├── ctx-8k/
+│   │   ├── benchmark.json     # Raw data
+│   │   └── benchmark.csv      # Spreadsheet format
+│   ├── ctx-16k/
+│   └── ...
+└── charts/                     # Generated visualizations
+    ├── performance.png         # Main performance chart
+    ├── memory.png              # Memory usage chart
+    ├── efficiency.png          # Memory vs speed
+    ├── gpu_utilization.png     # GPU/RAM split
+    └── summary.md              # Text summary
 ```
 
-This keeps results from different benchmark runs cleanly organized.
+> \[!TIP\] Charts automatically aggregate data across **all runs** for statistical reliability
 
-**Supported formats:**
+______________________________________________________________________
 
-- CSV: Easy import to Excel/Pandas
-- JSON: Structured data with all metrics
-- Parquet: Efficient storage for large datasets
-
-### Example Output
-
-```text
-┌──────────────────┬─────────┬───────────┬─────────┬──────────┬─────────┬──────────┬──────────┬───────────┬──────────┐
-│ Model            │ Disk GB │ Preloaded │ Context │ RAM/VRAM │ MEM GB  │ Load (s) │ Eval (s) │ Tok/s     │ Total(s) │
-├──────────────────┼─────────┼───────────┼─────────┼──────────┼─────────┼──────────┼──────────┼───────────┼──────────┤
-│ phi4-mini:3.8b   │ 2.3     │ NO        │ 8192    │ 0%/100%  │ 4.2     │ 0.845    │ 2.134    │ 120.1     │ 3.021    │
-│ gemma3:4b        │ 2.5     │ NO        │ 8192    │ 0%/100%  │ 4.8     │ 0.923    │ 1.891    │ 135.4     │ 2.856    │
-│ deepseek-r1:8b   │ 4.7     │ NO        │ 8192    │ 3%/97%   │ 6.1     │ 1.234    │ 3.456    │ 74.1      │ 4.721    │
-└──────────────────┴─────────┴───────────┴─────────┴──────────┴─────────┴──────────┴──────────┴───────────┴──────────┘
-```
-
-## Features
-
-### Live Streaming Display
-
-Real-time display of model responses during generation with:
-
-- Token-by-token streaming
-- Memory usage updates
-- Progress tracking
-- Auto-scrolling text display
-
-### Memory Monitoring
-
-Captures RAM/VRAM split from `ollama ps`:
-
-- GPU percentage
-- CPU percentage
-- Total memory size
-- Processor type
-
-### Statistical Analysis
-
-Multiple runs provide statistical insights:
-
-- Mean tokens/second
-- Standard deviation
-- Min/Max values
-- Performance variability
-
-### Export Formats
-
-Choose your preferred format:
+## 📈 Visualization
 
 ```bash
-uv run --with-requirements requirements.txt benchmark_models.py \
-  --csv results/benchmark.csv \
-  --json results/benchmark.json \
-  --parquet results/benchmark.parquet \
-  -s "all"
+# Generate charts from all runs (aggregated + averaged)
+./visualize.sh
+
+# Use specific run
+./visualize.sh results/20251006-012211/
+
+# Output SVG instead of PNG
+./visualize.sh --format svg
 ```
 
-## Advanced Usage
+<details>
+<summary><b>What the visualizations show</b></summary>
 
-### Custom Prompt
+<br>
+
+- **benchmark.png** — 🎯 Combined performance + GPU utilization view
+- **memory.png** — 💾 VRAM allocation across context sizes
+- **performance.png** — ⚡ Standalone performance view (reference)
+
+</details>
+
+______________________________________________________________________
+
+## 🎯 Common Tasks
+
+### Quick performance check
 
 ```bash
-# Inline prompt
-uv run --with-requirements requirements.txt benchmark_models.py \
-  -p "Explain quantum computing in 100 words" \
-  phi4-mini:3.8b
-
-# From file
-uv run --with-requirements requirements.txt benchmark_models.py \
-  --prompt-file my_prompt.txt \
-  phi4-mini:3.8b
+./bench.sh phi4-mini:3.8b gemma3:4b
 ```
 
-### Remote Ollama Server
+### Test with custom context
 
 ```bash
-uv run --with-requirements requirements.txt benchmark_models.py \
-  --host remote-server \
-  --port 11434 \
-  -s "all"
+./bench.sh --num-ctx 32768 --num-predict 1024 qwen3:8b
 ```
 
-### Matrix Testing
-
-The matrix runner executes benchmarks across multiple context window sizes:
+### Statistical runs
 
 ```bash
-# Default matrix (8K, 16K, 32K, 64K, 100K)
-uv run --with-requirements requirements.txt run_matrix.py
-
-# With parameter overrides
-uv run --with-requirements requirements.txt run_matrix.py \
-  --num-predict 2048 \
-  --temperature 0.3 \
-  --repeat-runs 5
-
-# Custom config
-uv run --with-requirements requirements.txt run_matrix.py \
-  --config config/my_matrix.yaml
+./bench.sh --repeat-runs 5 gpt-oss
 ```
 
-## Convenience Aliases
-
-Add to your `~/.bashrc` or `~/.zshrc`:
+### Full matrix test
 
 ```bash
-alias obench='cd /path/to/ollama/benchmark && uv run --with-requirements requirements.txt benchmark_models.py'
-alias omatrix='cd /path/to/ollama/benchmark && uv run --with-requirements requirements.txt run_matrix.py'
-
-# Then use:
-obench -s "phi4"
-omatrix --dry-run
+./matrix.sh --num-predict 2048
 ```
 
-Or create simple wrapper scripts in the project root:
+______________________________________________________________________
+
+## ⚙️ Configuration
+
+Default settings in `config/`:
+
+| File                    | Purpose                   |
+| :---------------------- | :------------------------ |
+| `benchmark_config.yaml` | Single benchmark defaults |
+| `context_matrix.yaml`   | Matrix test configuration |
+
+**Override via CLI or environment variables:**
 
 ```bash
-#!/bin/bash
-# benchmark.sh
-cd "$(dirname "$0")/ollama/benchmark"
-exec uv run --with-requirements requirements.txt benchmark_models.py "$@"
+export OLLAMA_NUM_CTX=16384
+./bench.sh -s "all"
 ```
 
-## Tips & Best Practices
+<details>
+<summary><b>Example: Custom matrix run</b></summary>
 
-### 1. Start with Default Models
+<br>
 
-```bash
-uv run --with-requirements requirements.txt benchmark_models.py
-# Tests: phi4-mini:3.8b, gemma3:4b, deepseek-r1:8b, qwen3:8b, gpt-oss:latest, qwen3-coder:30b
+Edit `config/context_matrix.yaml`:
+
+```yaml
+matrix:
+  context_sizes:
+    - 8192   # 8K
+    - 16384  # 16K
+    - 32768  # 32K
+    - 65536  # 64K
+    - 102400 # 100K
+
+  models:
+    - phi4-mini:3.8b
+    - qwen3:8b
+    - gpt-oss
+
+benchmark:
+  repeat_runs: 10  # Run each config 10 times
 ```
 
-### 2. Use Labels for Comparisons
+Then: `./matrix.sh`
+
+</details>
+
+______________________________________________________________________
+
+## 📦 Requirements
+
+Automatically handled by `uv`. Or manually:
 
 ```bash
-# Baseline run
-uv run --with-requirements requirements.txt benchmark_models.py \
-  --label "baseline" \
-  --csv results/baseline.csv \
-  -s "gpt-oss"
-
-# After optimization
-uv run --with-requirements requirements.txt benchmark_models.py \
-  --label "optimized" \
-  --csv results/optimized.csv \
-  -s "gpt-oss"
-
-# Compare in Pandas
-python -c "
-import pandas as pd
-baseline = pd.read_csv('results/baseline.csv')
-optimized = pd.read_csv('results/optimized.csv')
-print(pd.concat([baseline, optimized]))
-"
+pip install -r requirements.txt
 ```
 
-### 3. Statistical Runs
+Dependencies:
+
+- `matplotlib` — Chart generation
+- `pandas` — Data processing
+- `rich` — Terminal UI
+- `pyyaml` — Configuration
+
+______________________________________________________________________
+
+## 🏆 Published Results
+
+See `results/charts/` for visual analysis on **RTX 4090 24GB VRAM**
+
+### Key Findings
+
+| Model          | Highlight                                            |
+| :------------- | :--------------------------------------------------- |
+| 🏆 `gpt-oss`   | Best capability + long context (21B, 100K @ 91% GPU) |
+| 🎯 `qwen3:8b`  | Most stable across all sizes (±4% variance)          |
+| 💚 `gemma3:4b` | Most memory efficient (12GB @ 128K)                  |
+| ⚡ `phi4-mini` | Fastest at short context, crashes beyond 64K         |
+
+> \[!NOTE\] These results are from **aggregated runs** (multiple benchmarks averaged for reliability)
+
+______________________________________________________________________
+
+## 🔧 Troubleshooting
+
+<details>
+<summary><b>❌ Connection errors</b></summary>
+
+<br>
 
 ```bash
-uv run --with-requirements requirements.txt benchmark_models.py \
-  --repeat-runs 10 \
-  --csv results/stats.csv \
-  phi4-mini:3.8b
+curl http://localhost:11434/api/tags  # Check Ollama is running
 ```
 
-### 4. Memory Optimization Testing
+</details>
+
+<details>
+<summary><b>🐍 Missing dependencies</b></summary>
+
+<br>
 
 ```bash
-# Test different keep-alive settings
-export OLLAMA_KEEP_ALIVE=30s
-uv run --with-requirements requirements.txt benchmark_models.py -s "all"
-
-# Or via CLI
-uv run --with-requirements requirements.txt benchmark_models.py \
-  --keep-alive "5m" \
-  -s "all"
-```
-
-## Troubleshooting
-
-### "No module named 'rich'"
-
-Install dependencies:
-
-```bash
-cd ollama/benchmark
 uv pip install -r requirements.txt
 ```
 
-### Python Environment Issues
+</details>
 
-Use `uv run` which handles environments automatically:
+<details>
+<summary><b>🔍 Model not found</b></summary>
 
-```bash
-uv run --with-requirements requirements.txt benchmark_models.py --help
-```
-
-### Connection Errors
-
-Check Ollama is running:
+<br>
 
 ```bash
-curl http://localhost:11434/api/tags
+ollama list         # Check installed
+ollama pull <model> # Install missing
 ```
 
-Or specify different host:
+</details>
+
+______________________________________________________________________
+
+## 📚 Documentation
+
+- **This file** — Quick reference and common tasks
+- **[config/README.md](config/README.md)** — Detailed configuration options
+- **[config/context_matrix.yaml](config/context_matrix.yaml)** — Self-documenting matrix config
+
+______________________________________________________________________
+
+## 💡 Tips
+
+> **Run `./matrix.sh --dry-run`** to preview commands before executing
+
+**Use labels** for tracking different configurations:
 
 ```bash
-uv run --with-requirements requirements.txt benchmark_models.py --host remote-host --port 11434
+./bench.sh --label "baseline" --csv results/baseline.csv -s "all"
 ```
 
-### Models Not Found
-
-List available models:
+**Check progress** during long runs:
 
 ```bash
-ollama ls
+tail -f results/*/ctx-*/benchmark.csv
 ```
 
-Pull missing models:
+______________________________________________________________________
 
-```bash
-ollama pull phi4-mini:3.8b
-```
+<div align="center">
 
-## Documentation
+📈 Data-driven insights for model selection
 
-- [config/README.md](config/README.md) - Configuration guide
-- [CONFIG-ANALYSIS.md](CONFIG-ANALYSIS.md) - Technical analysis
-- [CHANGES.md](CHANGES.md) - Recent improvements
-- [MATRIX_TESTING.md](MATRIX_TESTING.md) - Matrix testing guide
+[Main README](../README.md) · [Model Selection Guide](../MODEL_SELECTION_GUIDE.md) · [Charts](results/charts/)
 
-## Examples
-
-See the `examples/` directory for:
-
-- Custom prompts
-- Analysis scripts
-- Visualization notebooks
-- CI/CD integration examples
-
-## Contributing
-
-1. Test changes with `uv run`:
-
-   ```bash
-   uv run --with-requirements requirements.txt benchmark_models.py --debug
-   ```
-
-2. Run with dry-run mode first:
-
-   ```bash
-   uv run --with-requirements requirements.txt run_matrix.py --dry-run
-   ```
-
-3. Check results format:
-
-   ```bash
-   python -c "import pandas as pd; print(pd.read_csv('results/benchmark.csv'))"
-   ```
-
-## License
-
-See project root for license information.
+</div>

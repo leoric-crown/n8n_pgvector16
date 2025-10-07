@@ -1,0 +1,20 @@
+{
+  "cpu_model": "AMD Ryzen 7 3700X 8-Core Processor",
+  "cpu_cores_physical": 8,
+  "cpu_cores_logical": 16,
+  "ram_total_gb": 62.69,
+  "ram_speed_mhz": 0,
+  "gpu_model": "NVIDIA GeForce RTX 4090",
+  "gpu_vram_gb": 23.99,
+  "gpu_count": 1,
+  "platform": "Linux 6.16.9-200.fc42.x86_64",
+  "os_name": "Fedora Linux 42",
+  "os_version": "42",
+  "kernel_version": "6.16.9-200.fc42.x86_64",
+  "python_version": "3.11.13",
+  "storage_type": "NVMe SSD",
+  "storage_model": "Samsung SSD 990 EVO Plus 2TB",
+  "storage_path": "/mnt/storage/ollama/models",
+  "storage_total_gb": 1471.65,
+  "storage_free_gb": 998.99
+}

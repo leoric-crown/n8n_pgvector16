@@ -4,12 +4,20 @@
 
 matrix:
   # Context window sizes to test (in tokens)
+  # More granular steps for detailed performance analysis
   context_sizes:
     - 8192 # 8K
+    # - 12288 # 12K
     - 16384 # 16K
+    # - 24576 # 24K
     - 32768 # 32K
+    # - 49152 # 48K
     - 65536 # 64K
-    - 102400 # 100K (100 * 1024)
+    # - 81920 # 80K
+    # - 92160 # 90K
+    - 98304 # 96K
+    - 102400 # 100K
+    - 131072 # 128K
 
   # Models to test (can use regex pattern matching)
   models:

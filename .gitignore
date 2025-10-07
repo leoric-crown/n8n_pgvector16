@@ -15,11 +15,18 @@ credentials-backup.json
 
 *TRANSCRIPT*.md
 *benchmark*.csv
-*benchmark*.json
 
-# Benchmark results (but keep directory structure)
+# Benchmark results: keep one reference run + charts, ignore the rest
 ollama/benchmark/results/*
-!ollama/benchmark/results/.gitkeep
+!ollama/benchmark/results/20251006-023347/
+!ollama/benchmark/results/charts/
+!ollama/benchmark/results/charts/README.md
+!ollama/benchmark/results/charts/benchmark.png
+!ollama/benchmark/results/charts/memory.png
+!ollama/benchmark/results/charts/performance.png
+ollama/benchmark/results/charts/summary.md
+ollama/benchmark/results/charts/*.svg
+ollama/benchmark/results/charts/*.pdf
 
 n8n-nodes/
 
