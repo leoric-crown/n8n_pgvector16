@@ -37,17 +37,10 @@ This repository includes comprehensive benchmark results from testing various LL
 ```bash
 git clone https://github.com/leoric-crown/n8n_pgvector16.git
 cd n8n_pgvector16
-
-# OPTIONAL: Initialize git submodules (only if using tableau-mcp)
-git submodule init
-git submodule update
 ```
 
-**Note:** The `tableau-mcp` service is optional. If you don't need Tableau integration:
-
-- Skip the submodule initialization above
-- Comment out the `tableau-mcp` service in `docker-compose.yml`
-- Otherwise, Docker Compose will fail with "Dockerfile not found" errors
+Note: The stack includes optional services you can disable if not needed (e.g., `pgadmin`, `postgres-mcp`). Comment them
+out in `docker-compose.yml` to reduce resource usage.
 
 ### 2. Install Development Tools (Optional but Recommended)
 
@@ -69,6 +62,8 @@ pre-commit install
 
 ### 3. Environment Setup
 
+The repository includes a `.env.example` file with all configuration options and automatic generation directives.
+
 #### Quick Setup (Recommended)
 
 ```bash
@@ -87,6 +82,8 @@ cp .env.example .env && nano .env
 
 **Safety Note:** The setup will not overwrite existing `.env` files. If you have an existing `.env`, back it up first:
 `cp .env .env.backup && rm .env`
+
+**Configuration:** Review `.env.example` to see all available configuration options and their documentation.
 
 ### 4. Start the Stack
 
@@ -159,36 +156,12 @@ Without this bucket, Langfuse will fail with S3 credential errors.
 ### 7. Access n8n
 
 - **Local**: <http://localhost:5678>
-- **Production**: <https://your.domain.com> (with Cloudflare Tunnel + your own domain)
+- **Production**: `https://your.domain.com` (with Cloudflare Tunnel + your own domain)
 
 ## Local Network Access with Caddy (Optional)
 
 For a more convenient local development experience, you can use [Caddy](https://caddyserver.com/) as a reverse proxy to
-provide HTTPS for your local services (e.g., `https://n8n.lan`). This is optional and not required for production
-deployments using Cloudflare Tunnels.
-
-### Caddyfile Configuration for Long-Running Workflows
-
-Add the following to your Caddyfile, then run `caddy run`. This includes increased timeouts to prevent errors with slow
-LLM workflows.
-
-```caddy
-n8n.lan {
-    reverse_proxy localhost:5678 {
-        transport http {
-            dial_timeout 600s
-            response_header_timeout 600s
-        }
-    }
-}
-```
-
-This configuration automatically provides a trusted HTTPS certificate (provided by LetsEncrypt) for `n8n.lan` on your
-local network. For more advanced configurations, please refer to the
-[official Caddy documentation](https://caddyserver.com/docs/).
-
-Point your local DNS records (or update your host files) to route n8n.lan to your host's local IP address to get a fully
-functional https served n8n instance on your local network
+provide HTTPS for your local services. See the [Caddy Setup Guide](docs/CADDY_SETUP.md) for more details.
 
 ## Quick Reference
 
@@ -198,6 +171,8 @@ functional https served n8n instance on your local network
 - **Langfuse**: <http://localhost:9119>
 - **pgAdmin**: <http://localhost:5050> (<admin@example.com> / password in .env)
 - **MinIO Console**: <http://localhost:9001>
+- **n8n-mcp** (AI assistant): <http://localhost:8042/health>
+- **postgres-mcp**: <http://localhost:8700> (SSE transport)
 
 ## Production Deployment
 
@@ -211,27 +186,7 @@ Key features for production:
 - Comprehensive metrics and monitoring
 - Production-grade database configuration
 
-## Configuration
-
-### Environment Variables
-
-Key variables in `.env`:
-
-```env
-# Database
-POSTGRES_PASSWORD=your_secret_postgres_password
-POSTGRES_NON_ROOT_PASSWORD=your_super_secret_postgres_password
-
-# n8n
-N8N_HOST=0.0.0.0
-TIMEZONE=America/Mexico_City    # Set your timezone (https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)
-
-# n8n-mcp (AI assistant https://github.com/czlonkowski/n8n-mcp)
-N8N_API_KEY=your_n8n_api_key_here
-MCP_AUTH_TOKEN=your_secure_auth_token_here
-```
-
-### Services
+## Services
 
 - **postgres**: PostgreSQL 16 with pgvector extension
 - **n8n**: Main workflow automation service
@@ -241,7 +196,8 @@ MCP_AUTH_TOKEN=your_secure_auth_token_here
 - **redis**: Cache and queue management
 - **clickhouse**: OLAP database for traces/observations/scores
 - **n8n-mcp**: AI assistant for workflow development (optional)
-- **prometheus/grafana**: Monitoring stack (commented out)
+- **prometheus/grafana**: Monitoring stack (commented out). To enable, uncomment the `prometheus` and `grafana` services
+  in `docker-compose.yml` and the `N8N_METRICS` environment variables in the `n8n` service.
 
 ### Langfuse v3 Architecture (Important!)
 
@@ -256,6 +212,8 @@ Langfuse v3 uses a distributed database architecture for optimal performance:
 observability data is stored in ClickHouse for better performance at scale.
 
 ## Management
+
+See MAINTENANCE.md for common operational commands and best practices.
 
 ## AI/ML Capabilities
 
@@ -296,7 +254,7 @@ pre-commit run --all-files
 ### Production Security
 
 - Database uses non-root user for n8n connections
-- Configurable encryption key (not hardcoded)
+- Configurable encryption key
 - Environment variable isolation
 - HTTPS protocol with proxy hop configuration
 - Blocked environment access in nodes (`N8N_BLOCK_ENV_ACCESS_IN_NODE=true`)

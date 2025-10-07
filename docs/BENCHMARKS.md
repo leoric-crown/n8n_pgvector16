@@ -1,12 +1,13 @@
 # Performance Benchmarks
 
-**Hardware:** RTX 4090 24GB VRAM | **Data:** Aggregated across 3 runs
+**Hardware:** RTX 4090 24GB VRAM | **Data:** Aggregated across 10 runs per configuration
 
 ## Performance Overview
 
-![Performance Chart](../ollama/benchmark/results/charts/performance.png)
+![Benchmark Overview](../ollama/benchmark/results/charts/benchmark.png)
 
-*Token generation speed across context window sizes (8K → 100K). Error bars show standard deviation.*
+*Combined view: Performance (tokens/sec) on top, GPU utilization below. Lines stacked above 100% = full GPU utilization.
+Red X = CPU-only fallback.*
 
 ## Key Findings
 
@@ -45,19 +46,7 @@
 
 ![Memory Chart](../ollama/benchmark/results/charts/memory.png)
 
-*VRAM consumption grows linearly with context size. Red line = 24GB VRAM limit.*
-
-## Efficiency Analysis
-
-![Efficiency Chart](../ollama/benchmark/results/charts/efficiency.png)
-
-*Memory vs performance trade-offs. Bubble size = context window | Dim = RAM spillover.*
-
-## GPU Utilization
-
-![GPU Utilization](../ollama/benchmark/results/charts/gpu_utilization.png)
-
-*GPU percentage across context sizes. Hatched areas = RAM spillover (performance degradation).*
+*VRAM consumption grows linearly with context size. Red X markers indicate CPU-only fallback (model offloaded to RAM).*
 
 ## Recommendations
 
@@ -100,5 +89,6 @@ cd ollama/benchmark
 
 ______________________________________________________________________
 
-**Methodology:** Each metric averaged across 3 independent runs. Standard test prompt used for all models. Charts
-generated from `ollama/benchmark/results/` data.
+**Methodology:** Each metric averaged across 10 independent runs per configuration (12 context sizes: 8K → 128K).
+Standard test prompt used for all models. Charts generated from `ollama/benchmark/results/` data with error bars showing
+standard deviation.

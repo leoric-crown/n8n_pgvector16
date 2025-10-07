@@ -21,7 +21,7 @@ containerized stack includes:
 - **Ollama**: Native LLM server (installed on host system, not containerized) for local AI model inference
   - Runs independently on the host OS
   - Accessible to containers via `host.docker.internal`
-  - See [OLLAMA_INTEGRATION.md](./ollama/OLLAMA_INTEGRATION.md) for setup and optimization guides
+  - See [Ollama Integration](./ollama/README.md) for setup and optimization guides
 
 ### Langfuse v3 Database Architecture (CRITICAL)
 
@@ -62,9 +62,11 @@ Langfuse v3 uses a distributed storage architecture:
 ## Key Components
 
 - `docker-compose.yml`: Main service definitions for postgres and n8n services
-- `DEPLOYMENT.md`: Comprehensive deployment guide for production setup with Cloudflare Tunnel
+- `.env.example`: Environment variable template with directive-based auto-generation
+- `setup-env.py`: Automated environment setup script with secure credential generation
 - `init-data.sh`: PostgreSQL initialization script that creates non-root user and enables vector extension
-- `.env`: Environment variables for database credentials (copy from `.env.example`)
+- `DEPLOYMENT.md`: Comprehensive deployment guide for production setup with Cloudflare Tunnel
+- `MAINTENANCE.md`: Operational commands and security best practices
 - `prometheus.yml`: Prometheus configuration for optional monitoring setup
 
 ## ⚠️ CRITICAL: .env.example Maintenance
@@ -184,7 +186,7 @@ python3 setup-env.py --auto
 
 For complete homelab functionality, you may also want to set up:
 
-- **Ollama for local LLM inference** (see [OLLAMA_INTEGRATION.md](./ollama/OLLAMA_INTEGRATION.md)):
+- **Ollama for local LLM inference** (see [Ollama Integration](./ollama/README.md)):
   - Install Ollama natively on host system
   - Configure for container integration via `host.docker.internal`
   - Download recommended models for your hardware
@@ -209,10 +211,9 @@ Run manually: `pre-commit run --all-files`
 
 For complete homelab setup with local LLM capabilities (using ollama), see the comprehensive documentation:
 
-- **[OLLAMA_INTEGRATION.md](./ollama/OLLAMA_INTEGRATION.md)** - Native Ollama setup and integration guide
-- **[RTX_4090_OPTIMIZATION.md](./ollama/RTX_4090_OPTIMIZATION.md)** - NVIDIA RTX 4090 optimization guide
-- **[M4_PRO_OPTIMIZATION.md](./ollama/M4_PRO_OPTIMIZATION.md)** - Apple Silicon M4 Pro optimization guide
+- **[Ollama Integration](./ollama/README.md)** - Native Ollama setup and integration guide
 - **[MODEL_SELECTION_GUIDE.md](./ollama/MODEL_SELECTION_GUIDE.md)** - Model recommendations and benchmarks
+- **[Benchmark Tools](./ollama/benchmark/README.md)** - Configuration, matrix testing, and visualization
 
 ## Monitoring (Optional)
 

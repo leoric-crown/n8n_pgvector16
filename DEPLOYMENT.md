@@ -20,7 +20,7 @@ For enhanced homelab functionality, you may also want:
 
 - **Ollama** (for local LLM inference)
   - Install natively on a host on your local network
-  - See [OLLAMA_INTEGRATION.md](./ollama/OLLAMA_INTEGRATION.md) for setup guides
+  - See [Ollama Integration](./ollama/README.md) for setup guides
   - Not required for basic n8n functionality
 
 ### 3. Verify Domain in Cloudflare
@@ -182,17 +182,7 @@ cat .env
 docker compose config
 ```
 
-### 2. Optional Components Setup
-
-```bash
-# OPTIONAL: Initialize tableau-mcp submodule (only if using Tableau integration)
-# git submodule init
-# git submodule update
-
-# If not using tableau-mcp, comment it out in docker-compose.yml to avoid build errors
-```
-
-### 3. Deploy Stack
+### 2. Deploy Stack
 
 ```bash
 # Pull latest images
@@ -208,7 +198,7 @@ docker compose logs -f n8n
 
 ### 3. Initial n8n Setup
 
-1. Access \<<https://n8n>.<your-domain>> (Cloudflare handles SSL and routing)
+1. Access `https://n8n.<your-domain>` (Cloudflare handles SSL and routing)
 2. Create admin account
 3. Configure base URL in settings
 4. Generate API key for n8n-mcp integration
@@ -240,7 +230,7 @@ docker compose logs n8n | grep -i error
 
 ### 2. Functionality Tests
 
-- [ ] n8n web interface accessible at \<<https://n8n>.<your-domain>>
+- [ ] n8n web interface accessible at `https://n8n.<your-domain>`
 - [ ] Workflow creation and execution
 - [ ] Webhook endpoints working
 - [ ] Database persistence (docker compose down+up container test)
@@ -259,10 +249,10 @@ docker compose logs n8n | grep -i error
 
 ```bash
 # Create backup
-docker-compose exec postgres pg_dump -U n8n_user -d n8n > n8n_backup_$(date +%Y%m%d).sql
+docker compose exec postgres pg_dump -U n8n_user -d n8n > n8n_backup_$(date +%Y%m%d).sql
 
 # Restore backup
-docker-compose exec -T postgres psql -U n8n_user -d n8n < n8n_backup_YYYYMMDD.sql
+docker compose exec -T postgres psql -U n8n_user -d n8n < n8n_backup_YYYYMMDD.sql
 ```
 
 ### Volume Backup
