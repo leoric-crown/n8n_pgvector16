@@ -87,6 +87,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    labels:
+      - "dockpeek.link=https://n8n.leoric.org"
 
   # n8n-mcp (AI assistant for workflow development)
   n8n-mcp:
@@ -166,6 +168,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    labels:
+      - "dockpeek.link=https://langfuse.lan"
 
   # Langfuse Async Worker - Background processing for events, traces, and async operations
   langfuse-worker:
@@ -258,6 +262,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+    labels:
+      - "dockpeek.link=https://minio.lan"
 
   # End Langfuse
 
@@ -278,6 +284,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    labels:
+      - "dockpeek.link=https://pgadmin.lan"
 
   # Optional: PostgreSQL MCP Server - Database query and management via MCP protocol
   postgres-mcp:
